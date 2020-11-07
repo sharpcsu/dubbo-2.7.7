@@ -719,11 +719,15 @@ public class ServiceDiscoveryRegistry extends FailbackRegistry {
 
     private List<URL> getRevisionExportedURLs(String serviceName, String revision) {
         return executeShared(() -> {
-            Map<String, List<URL>> revisionExportedURLsMap = getRevisionExportedURLsMap(serviceName);
-            List<URL> exportedURLs = revisionExportedURLsMap.get(revision);
-            // Get a copy from source in order to prevent the caller trying to change the cached data
-            return exportedURLs != null ? new ArrayList<>(exportedURLs) : emptyList();
+            return getUrls(serviceName, revision);
         });
+    }
+
+    private List<URL> getUrls(String serviceName, String revision) {
+        Map<String, List<URL>> revisionExportedURLsMap = getRevisionExportedURLsMap(serviceName);
+        List<URL> exportedURLs = revisionExportedURLsMap.get(revision);
+        // Get a copy from source in order to prevent the caller trying to change the cached data
+        return exportedURLs != null ? new ArrayList<>(exportedURLs) : emptyList();
     }
 
     /**
