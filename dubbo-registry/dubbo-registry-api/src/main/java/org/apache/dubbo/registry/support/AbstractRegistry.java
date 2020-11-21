@@ -67,6 +67,8 @@ import static org.apache.dubbo.registry.Constants.REGISTRY__LOCAL_FILE_CACHE_ENA
 
 /**
  * AbstractRegistry. (SPI, Prototype, ThreadSafe)
+ * 核心是本地文件缓存功能
+ * 通过本地缓存提供了一种容错机制，保证了服务的可靠性
  */
 public abstract class AbstractRegistry implements Registry {
 
@@ -210,6 +212,9 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * 将本地缓存文件加载到properties对象中
+     */
     private void loadProperties() {
         if (file != null && file.exists()) {
             InputStream in = null;
@@ -233,6 +238,9 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * 获取本地缓存
+     */
     public List<URL> getCacheUrls(URL url) {
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
             String key = (String) entry.getKey();
@@ -279,6 +287,10 @@ public abstract class AbstractRegistry implements Registry {
         return result;
     }
 
+    /**
+     * 将当前节点要注册的URL缓存到properties集合
+     * @param url  Registration information , is not allowed to be empty, e.g: dubbo://10.20.153.10/org.apache.dubbo.foo.BarService?version=1.0.0&application=kylin
+     */
     @Override
     public void register(URL url) {
         if (url == null) {
@@ -290,6 +302,11 @@ public abstract class AbstractRegistry implements Registry {
         registered.add(url);
     }
 
+    /**
+     * 从registered集合删除指定的URL
+     *
+     * @param url Registration information , is not allowed to be empty, e.g: dubbo://10.20.153.10/org.apache.dubbo.foo.BarService?version=1.0.0&application=kylin
+     */
     @Override
     public void unregister(URL url) {
         if (url == null) {
@@ -301,6 +318,12 @@ public abstract class AbstractRegistry implements Registry {
         registered.remove(url);
     }
 
+    /**
+     * 将当前节点作为Consumer的URL以及相关的NotifyListener记录到subscribed集合
+     *
+     * @param url      Subscription condition, not allowed to be empty, e.g. consumer://10.20.153.10/org.apache.dubbo.foo.BarService?version=1.0.0&application=kylin
+     * @param listener A listener of the change event, not allowed to be empty
+     */
     @Override
     public void subscribe(URL url, NotifyListener listener) {
         if (url == null) {
@@ -316,6 +339,12 @@ public abstract class AbstractRegistry implements Registry {
         listeners.add(listener);
     }
 
+    /**
+     * 将当前节点的url以及关联的NotifyListener从subscribed集合删除
+     *
+     * @param url      Subscription condition, not allowed to be empty, e.g. consumer://10.20.153.10/org.apache.dubbo.foo.BarService?version=1.0.0&application=kylin
+     * @param listener A listener of the change event, not allowed to be empty
+     */
     @Override
     public void unsubscribe(URL url, NotifyListener listener) {
         if (url == null) {
@@ -333,6 +362,10 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * Provider因为网络问题与注册中心断开重连后，会调用recover()方法将registered集合中的全部url重新走一遍register()方法，恢复注册数据，
+     * 将subscribed集合中的URL重新走一遍subscribe()方法，恢复订阅监听器。
+     */
     protected void recover() throws Exception {
         // register
         Set<URL> recoverRegistered = new HashSet<>(getRegistered());
@@ -386,10 +419,12 @@ public abstract class AbstractRegistry implements Registry {
 
     /**
      * Notify changes from the Provider side.
+     * 当Provider端暴露的URL发生变化时，ZooKeeper等服务发现组件会通知Consumer端的Registry组件，
+     * Registry组件会调用notify()方法，被通知的Consumer能匹配到所有Provider的URL列表并写入properties集合中。
      *
-     * @param url      consumer side url
-     * @param listener listener
-     * @param urls     provider latest urls
+     * @param url      consumer side url 表示Consumer
+     * @param listener listener Consumer对应的监听器
+     * @param urls     provider latest urls Provider端暴露的URL的全量数据
      */
     protected void notify(URL url, NotifyListener listener, List<URL> urls) {
         if (url == null) {
@@ -409,7 +444,9 @@ public abstract class AbstractRegistry implements Registry {
         // keep every provider's category.
         Map<String, List<URL>> result = new HashMap<>();
         for (URL u : urls) {
+            //Consumer URL与Provider URL匹配
             if (UrlUtils.isMatch(url, u)) {
+                //根据Provider URL中的category参数进行分类
                 String category = u.getParameter(CATEGORY_KEY, DEFAULT_CATEGORY);
                 List<URL> categoryList = result.computeIfAbsent(category, k -> new ArrayList<>());
                 categoryList.add(u);
@@ -422,10 +459,11 @@ public abstract class AbstractRegistry implements Registry {
         for (Map.Entry<String, List<URL>> entry : result.entrySet()) {
             String category = entry.getKey();
             List<URL> categoryList = entry.getValue();
-            categoryNotified.put(category, categoryList);
-            listener.notify(categoryList);
+            categoryNotified.put(category, categoryList);  //更新notified
+            listener.notify(categoryList);  //调用NotifyListener
             // We will update our cache file after each notification.
             // When our Registry has a subscribe failure due to network jitter, we can return at least the existing cache URL.
+            //更新properties集合底层的文件缓存
             saveProperties(url);
         }
     }
@@ -436,6 +474,7 @@ public abstract class AbstractRegistry implements Registry {
         }
 
         try {
+            //取出Consumer订阅的各个分类的URL连接起来
             StringBuilder buf = new StringBuilder();
             Map<String, List<URL>> categoryNotified = notified.get(url);
             if (categoryNotified != null) {
@@ -448,11 +487,14 @@ public abstract class AbstractRegistry implements Registry {
                     }
                 }
             }
+            //以Consumer的ServiceKey为键值写到properties中
             properties.setProperty(url.getServiceKey(), buf.toString());
             long version = lastCacheChanged.incrementAndGet();
             if (syncSaveFile) {
+                //同步更新file文件
                 doSaveProperties(version);
             } else {
+                //异步更新file文件
                 registryCacheExecutor.execute(new SaveProperties(version));
             }
         } catch (Throwable t) {
@@ -460,6 +502,9 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * 节点下线的时候调用destroy()释放底层资源。
+     */
     @Override
     public void destroy() {
         if (logger.isInfoEnabled()) {

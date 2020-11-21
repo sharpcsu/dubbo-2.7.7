@@ -29,6 +29,8 @@ import java.util.List;
 public interface RegistryService {
 
     /**
+     * 将当前节点要注册的URL缓存到properties集合
+     *
      * Register data, such as : provider service, consumer address, route rule, override rule and other data.
      * <p>
      * Registering is required to support the contract:<br>
@@ -43,6 +45,8 @@ public interface RegistryService {
     void register(URL url);
 
     /**
+     * 从registered集合删除指定的URL
+     *
      * Unregister
      * <p>
      * Unregistering is required to support the contract:<br>
@@ -54,6 +58,8 @@ public interface RegistryService {
     void unregister(URL url);
 
     /**
+     * 将当前节点作为Consumer的URL以及相关的NotifyListener记录到subscribed集合
+     *
      * Subscribe to eligible registered data and automatically push when the registered data is changed.
      * <p>
      * Subscribing need to support contracts:<br>
@@ -71,6 +77,8 @@ public interface RegistryService {
     void subscribe(URL url, NotifyListener listener);
 
     /**
+     * 将当前节点的url以及关联的NotifyListener从subscribed集合删除
+     *
      * Unsubscribe
      * <p>
      * Unsubscribing is required to support the contract:<br>
