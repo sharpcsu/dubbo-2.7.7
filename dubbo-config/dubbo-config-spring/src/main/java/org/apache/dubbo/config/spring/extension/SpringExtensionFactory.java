@@ -56,6 +56,9 @@ public class SpringExtensionFactory implements ExtensionFactory {
         CONTEXTS.clear();
     }
 
+    /**
+     * 将属性名称作为Spring Bean名称，从Spring容器中获取Bean
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getExtension(Class<T> type, String name) {

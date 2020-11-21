@@ -17,7 +17,7 @@
 package org.apache.dubbo.common.serialize.protobuf.support;
 
 public class GenericProtobufSerializationTest extends AbstractProtobufSerializationTest {
-    {
-        serialization = new GenericProtobufSerialization();
-    }
+//    {
+//        serialization = new GenericProtobufSerialization();
+//    }
 }

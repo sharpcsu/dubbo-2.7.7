@@ -240,7 +240,7 @@ public class ExtensionLoader<T> {
     /**
      * This is equivalent to {@code getActivateExtension(url, key, null)}
      *
-     * @param url url
+     * @param url url 包含配置信息
      * @param key url parameter key which used to get extension point names
      * @return extension list which are activated.
      * @see #getActivateExtension(org.apache.dubbo.common.URL, String, String)
@@ -252,8 +252,8 @@ public class ExtensionLoader<T> {
     /**
      * This is equivalent to {@code getActivateExtension(url, values, null)}
      *
-     * @param url    url
-     * @param values extension point names
+     * @param url    url 包含配置信息
+     * @param values extension point names 配置中指定的扩展名
      * @return extension list which are activated
      * @see #getActivateExtension(org.apache.dubbo.common.URL, String[], String)
      */
@@ -264,9 +264,9 @@ public class ExtensionLoader<T> {
     /**
      * This is equivalent to {@code getActivateExtension(url, url.getParameter(key).split(","), null)}
      *
-     * @param url   url
+     * @param url   url 包含配置信息
      * @param key   url parameter key which used to get extension point names
-     * @param group group
+     * @param group group Provider或Consumer
      * @return extension list which are activated.
      * @see #getActivateExtension(org.apache.dubbo.common.URL, String[], String)
      */
@@ -278,24 +278,32 @@ public class ExtensionLoader<T> {
     /**
      * Get activate extensions.
      *
-     * @param url    url
-     * @param values extension point names
-     * @param group  group
+     * @param url    包含配置信息
+     * @param values 配置中指定的扩展名
+     * @param group  Provider或Consumer
      * @return extension list which are activated
      * @see org.apache.dubbo.common.extension.Activate
      */
     public List<T> getActivateExtension(URL url, String[] values, String group) {
         List<T> activateExtensions = new ArrayList<>();
+        //values配置就是扩展名
         List<String> names = values == null ? new ArrayList<>(0) : asList(values);
+        /*
+        获取默认激活的扩展集合。默认激活的扩展实现类有几个条件：
+        1. 在cachedActivates集合中存在
+        2. @Activate注解指定的group属性与当前group匹配
+        3. 扩展名没有出现在values中（未在配置中明确指定，也未在配置中明确指定删除）
+        4. url中出现了@Activate注解中指定的key
+         */
         if (!names.contains(REMOVE_VALUE_PREFIX + DEFAULT_KEY)) {
-            getExtensionClasses();
+            getExtensionClasses();  //触发cachedActivates等缓存字段的加载
             for (Map.Entry<String, Object> entry : cachedActivates.entrySet()) {
-                String name = entry.getKey();
-                Object activate = entry.getValue();
+                String name = entry.getKey();  //扩展名
+                Object activate = entry.getValue();  //@Activate注解
 
                 String[] activateGroup, activateValue;
 
-                if (activate instanceof Activate) {
+                if (activate instanceof Activate) {  //@Activate注解中的配置
                     activateGroup = ((Activate) activate).group();
                     activateValue = ((Activate) activate).value();
                 } else if (activate instanceof com.alibaba.dubbo.common.extension.Activate) {
@@ -304,22 +312,29 @@ public class ExtensionLoader<T> {
                 } else {
                     continue;
                 }
-                if (isMatchGroup(group, activateGroup)
-                        && !names.contains(name)
-                        && !names.contains(REMOVE_VALUE_PREFIX + name)
-                        && isActive(activateValue, url)) {
+                if (isMatchGroup(group, activateGroup)  //匹配group
+                        && !names.contains(name)  //没有出现在values配置中的，即为默认激活的扩展实现
+                        && !names.contains(REMOVE_VALUE_PREFIX + name)  //通过"-"明确指定不激活该扩展实现
+                        && isActive(activateValue, url)) {  //检测url中是否出现了指定的key
+                    //加载扩展实现的实例对象，这些都是激活的
                     activateExtensions.add(getExtension(name));
                 }
             }
+            //排序
             activateExtensions.sort(ActivateComparator.COMPARATOR);
         }
         List<T> loadedExtensions = new ArrayList<>();
+        /*
+        按序添加自定义扩展实现类的对象
+         */
         for (int i = 0; i < names.size(); i++) {
             String name = names.get(i);
+            //通过"-"开头的配置明确指定不激活的扩展实现，直接忽略了
             if (!name.startsWith(REMOVE_VALUE_PREFIX)
                     && !names.contains(REMOVE_VALUE_PREFIX + name)) {
                 if (DEFAULT_KEY.equals(name)) {
                     if (!loadedExtensions.isEmpty()) {
+                        //按照顺序，将自定义的扩展添加到默认扩展集合前面
                         activateExtensions.addAll(0, loadedExtensions);
                         loadedExtensions.clear();
                     }
@@ -329,6 +344,7 @@ public class ExtensionLoader<T> {
             }
         }
         if (!loadedExtensions.isEmpty()) {
+            //按照顺序，将自定义的扩展添加到默认扩展集合的后面
             activateExtensions.addAll(loadedExtensions);
         }
         return activateExtensions;
@@ -702,33 +718,42 @@ public class ExtensionLoader<T> {
         return getExtensionClasses().containsKey(name);
     }
 
+    /**
+     * 自动装配
+     * 依赖了ExtensionFactory
+     */
     private T injectExtension(T instance) {
 
-        if (objectFactory == null) {
+        if (objectFactory == null) { //检测objectFactory字段
             return instance;
         }
 
         try {
             for (Method method : instance.getClass().getMethods()) {
+                //如果不是setter方法，忽略该方法
                 if (!isSetter(method)) {
                     continue;
                 }
                 /**
                  * Check {@link DisableInject} to see if we need auto injection for this property
+                 * 如果方法上明确标注了@DisableInject注解，忽略该方法
                  */
                 if (method.getAnnotation(DisableInject.class) != null) {
                     continue;
                 }
+                //根据setter方法的参数，确定扩展接口
                 Class<?> pt = method.getParameterTypes()[0];
                 if (ReflectUtils.isPrimitives(pt)) {
-                    continue;
+                    continue;//如果参数为简单类型，忽略该方法
                 }
 
                 try {
+                    //根据setter方法的名称确定属性名称
                     String property = getSetterProperty(method);
+                    //加载并实例化扩展实现类
                     Object object = objectFactory.getExtension(pt, property);
                     if (object != null) {
-                        method.invoke(instance, object);
+                        method.invoke(instance, object); //调用setter方法进行装配
                     }
                 } catch (Exception e) {
                     logger.error("Failed to inject via method " + method.getName()
@@ -928,12 +953,12 @@ public class ExtensionLoader<T> {
                     + clazz.getName() + " is not subtype of interface.");
         }
         if (clazz.isAnnotationPresent(Adaptive.class)) {
-            //缓存到cachedAdaptiveClass字段
+            //处理@Adaptive注解， 缓存到cachedAdaptiveClass字段
             cacheAdaptiveClass(clazz, overridden);
-        } else if (isWrapperClass(clazz)) {
+        } else if (isWrapperClass(clazz)) {  //处理Wrapper类
             cacheWrapperClass(clazz);
-        } else {
-            clazz.getConstructor();
+        } else {  //处理真正的扩展实现类
+            clazz.getConstructor();  //扩展实现类必须有无参构造函数
             if (StringUtils.isEmpty(name)) {
                 name = findAnnotationName(clazz);
                 if (name.length() == 0) {
@@ -941,11 +966,15 @@ public class ExtensionLoader<T> {
                 }
             }
 
+            //兜底：SPI配置文件中未指定扩展名称，则用类的简单名称作为扩展名
             String[] names = NAME_SEPARATOR.split(name);
             if (ArrayUtils.isNotEmpty(names)) {
+                //将包含@Activate注解的实现类缓存到cachedActivates集合中
                 cacheActivateClass(clazz, names[0]);
                 for (String n : names) {
+                    //在cachedNames集合中缓存实现类->扩展名的映射
                     cacheName(clazz, n);
+                    //在cachedClasses集合中缓存扩展名->实现类的映射
                     saveInExtensionClass(extensionClasses, clazz, n, overridden);
                 }
             }
