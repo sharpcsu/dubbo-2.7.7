@@ -204,11 +204,15 @@ import java.nio.ByteBuffer;
 public interface ChannelBuffer extends Comparable<ChannelBuffer> {
 
     /**
+     * 返回channelBuffer可以容纳的字节数
+     *
      * Returns the number of bytes (octets) this buffer can contain.
      */
     int capacity();
 
     /**
+     * 清理channelBuffer
+     *
      * Sets the {@code readerIndex} and {@code writerIndex} of this buffer to
      * {@code 0}. This method is identical to {@link #setIndex(int, int)
      * setIndex(0, 0)}.
@@ -220,6 +224,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     void clear();
 
     /**
+     * 数据拷贝
+     *
      * Returns a copy of this buffer's readable bytes.  Modifying the content of
      * the returned buffer or this buffer does not affect each other at all.
      * This method is identical to {@code buf.copy(buf.readerIndex(),
@@ -278,12 +284,16 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     boolean equals(Object o);
 
     /**
+     * 返回创建ChannelBuffer的工厂对象
+     *
      * Returns the factory which creates a {@link ChannelBuffer} whose type and
      * default {@link java.nio.ByteOrder} are same with this buffer.
      */
     ChannelBufferFactory factory();
 
     /**
+     * 从参数指定的位置读当前ChannelBuffer，不会修改readerIndex和writerIndex指针的位置
+     *
      * Gets a byte at the specified absolute {@code index} in this buffer. This
      * method does not modify {@code readerIndex} or {@code writerIndex} of this
      * buffer.
@@ -412,6 +422,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     boolean isDirect();
 
     /**
+     * 记录当前readerIndex指针的位置
+     *
      * Marks the current {@code readerIndex} in this buffer.  You can reposition
      * the current {@code readerIndex} to the marked {@code readerIndex} by
      * calling {@link #resetReaderIndex()}. The initial value of the marked
@@ -420,6 +432,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     void markReaderIndex();
 
     /**
+     * 记录当前writerIndex指针的位置
+     *
      * Marks the current {@code writerIndex} in this buffer.  You can reposition
      * the current {@code writerIndex} to the marked {@code writerIndex} by
      * calling {@link #resetWriterIndex()}. The initial value of the marked
@@ -449,6 +463,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     byte readByte();
 
     /**
+     * 读取当前ChannelBuffer，从readerIndex指针开始读取数据，并移动readerIndex指针
+     *
      * Transfers this buffer's data to the specified destination starting at the
      * current {@code readerIndex} and increases the {@code readerIndex} by the
      * number of the transferred bytes (= {@code dst.length}).
@@ -545,6 +561,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     ChannelBuffer readBytes(int length);
 
     /**
+     * 将readerIndex指针重置到markReaderIndex指针标记的位置
+     *
      * Repositions the current {@code readerIndex} to the marked {@code
      * readerIndex} in this buffer.
      *
@@ -555,6 +573,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     void resetReaderIndex();
 
     /**
+     * 将writerIndex指针重置到markWriterIndex()方法标记的位置
+     *
      * Marks the current {@code writerIndex} in this buffer.  You can reposition
      * the current {@code writerIndex} to the marked {@code writerIndex} by
      * calling {@link #resetWriterIndex()}. The initial value of the marked
@@ -589,6 +609,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     void readBytes(OutputStream dst, int length) throws IOException;
 
     /**
+     * 从参数指定的位置写当前ChannelBuffer，不会修改readerIndex和writerIndex指针的位置
+     *
      * Sets the specified byte at the specified absolute {@code index} in this
      * buffer.  The 24 high-order bits of the specified value are ignored. This
      * method does not modify {@code readerIndex} or {@code writerIndex} of this
@@ -805,6 +827,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     int writableBytes();
 
     /**
+     * 写入当前ChannelBuffer，从writerIndex指针位置开始写入数据，并移动writerIndex指针
+     *
      * Sets the specified byte at the current {@code writerIndex} and increases
      * the {@code writerIndex} by {@code 1} in this buffer. The 24 high-order
      * bits of the specified value are ignored.

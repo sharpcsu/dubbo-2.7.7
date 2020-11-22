@@ -18,6 +18,9 @@ package org.apache.dubbo.remoting.buffer;
 
 import java.nio.ByteBuffer;
 
+/**
+ * 创建ChannelBuffer的工厂对象
+ */
 public interface ChannelBufferFactory {
 
     ChannelBuffer getBuffer(int capacity);

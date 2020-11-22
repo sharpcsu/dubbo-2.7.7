@@ -22,10 +22,19 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
+/**
+ * 其它ChannelBuffer的装饰器，为其他ChannelBuffer添加动态扩展容量的功能
+ */
 public class DynamicChannelBuffer extends AbstractChannelBuffer {
 
+    /**
+     * 默认为HeapChannelBufferFactory
+     */
     private final ChannelBufferFactory factory;
 
+    /**
+     * 被修饰的ChannelBuffer，默认为HeapChannelBuffer
+     */
     private ChannelBuffer buffer;
 
     public DynamicChannelBuffer(int estimatedLength) {
@@ -43,6 +52,10 @@ public class DynamicChannelBuffer extends AbstractChannelBuffer {
         buffer = factory.getBuffer(estimatedLength);
     }
 
+    /**
+     * 实现了动态扩容的功能
+     * 每次写入数据之前，都需要调用该方法确定当前可用空间是否足够
+     */
     @Override
     public void ensureWritableBytes(int minWritableBytes) {
         if (minWritableBytes <= writableBytes()) {
@@ -57,6 +70,7 @@ public class DynamicChannelBuffer extends AbstractChannelBuffer {
         }
         int minNewCapacity = writerIndex() + minWritableBytes;
         while (newCapacity < minNewCapacity) {
+            //容量不足时，扩大为原来的2倍
             newCapacity <<= 1;
         }
 

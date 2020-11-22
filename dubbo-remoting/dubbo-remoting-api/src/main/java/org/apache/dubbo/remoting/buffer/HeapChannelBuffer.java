@@ -25,9 +25,13 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
+/**
+ * 基于字节数组的ChannelBuffer实现
+ */
 public class HeapChannelBuffer extends AbstractChannelBuffer {
 
     /**
+     * HeapChannelBuffer存储数据的地方
      * The underlying heap byte array that this buffer is wrapping.
      */
     protected final byte[] array;

@@ -19,6 +19,9 @@ package org.apache.dubbo.remoting.buffer;
 
 import java.nio.ByteBuffer;
 
+/**
+ *
+ */
 public final class ChannelBuffers {
 
     public static final ChannelBuffer EMPTY_BUFFER = new HeapChannelBuffer(0);
@@ -26,6 +29,10 @@ public final class ChannelBuffers {
     private ChannelBuffers() {
     }
 
+    /**
+     * 创建DynamicChannelBuffer对象，初始化大小由第一个参数指定，默认为256
+     * @return
+     */
     public static ChannelBuffer dynamicBuffer() {
         return dynamicBuffer(256);
     }
@@ -39,6 +46,9 @@ public final class ChannelBuffers {
         return new DynamicChannelBuffer(capacity, factory);
     }
 
+    /**
+     * 创建指定大小的HeapChannelBuffer对象
+     */
     public static ChannelBuffer buffer(int capacity) {
         if (capacity < 0) {
             throw new IllegalArgumentException("capacity can not be negative");
@@ -49,6 +59,9 @@ public final class ChannelBuffers {
         return new HeapChannelBuffer(capacity);
     }
 
+    /**
+     * 将传入的byte[]数字封装成HeapChannelBuffer对象
+     */
     public static ChannelBuffer wrappedBuffer(byte[] array, int offset, int length) {
         if (array == null) {
             throw new NullPointerException("array == null");
@@ -79,6 +92,9 @@ public final class ChannelBuffers {
         }
     }
 
+    /**
+     * 创建ByteBufferBackedChannelBuffer对象，底层的ByteBuffer使用的堆外内存，需要关注堆外内存的管理
+     */
     public static ChannelBuffer directBuffer(int capacity) {
         if (capacity == 0) {
             return EMPTY_BUFFER;
@@ -90,20 +106,23 @@ public final class ChannelBuffers {
         return buffer;
     }
 
+    /**
+     * 比较两个ChannelBuffer是否相同，逐个比较两个ChannelBuffer的前7个可读字节，只有完全一致，才算相同
+     */
     public static boolean equals(ChannelBuffer bufferA, ChannelBuffer bufferB) {
         final int aLen = bufferA.readableBytes();
         if (aLen != bufferB.readableBytes()) {
-            return false;
+            return false;  //比较两个ChannelBuffer的可读字节数
         }
 
-        final int byteCount = aLen & 7;
+        final int byteCount = aLen & 7;  //只比较前7个字节
 
         int aIndex = bufferA.readerIndex();
         int bIndex = bufferB.readerIndex();
 
         for (int i = byteCount; i > 0; i--) {
             if (bufferA.getByte(aIndex) != bufferB.getByte(bIndex)) {
-                return false;
+                return false;  //前7个字节不相同，则返回true
             }
             aIndex++;
             bIndex++;
