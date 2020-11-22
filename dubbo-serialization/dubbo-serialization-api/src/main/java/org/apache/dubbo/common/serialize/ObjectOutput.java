@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
+ * 添加了序列化对象的功能
  * Object output interface.
  */
 public interface ObjectOutput extends DataOutput {

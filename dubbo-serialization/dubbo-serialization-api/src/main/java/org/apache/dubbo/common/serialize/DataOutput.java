@@ -19,6 +19,7 @@ package org.apache.dubbo.common.serialize;
 import java.io.IOException;
 
 /**
+ * 定义了序列化Java中各种数据类型的相应方法
  * Basic data type output interface.
  */
 public interface DataOutput {
