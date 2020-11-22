@@ -19,6 +19,8 @@ package org.apache.dubbo.remoting;
 import java.net.InetSocketAddress;
 
 /**
+ * 继承Endpoint接口，具备开关状态和发送数据的能力
+ *
  * Channel. (API/SPI, Prototype, ThreadSafe)
  *
  * @see org.apache.dubbo.remoting.Client

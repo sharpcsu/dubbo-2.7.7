@@ -20,6 +20,9 @@ import org.apache.dubbo.common.extension.SPI;
 
 
 /**
+ * 注册在Channel上的消息处理器
+ * 处理Channel中传输的数据
+ *
  * ChannelHandler. (API, Prototype, ThreadSafe)
  *
  * @see org.apache.dubbo.remoting.Transporter#bind(org.apache.dubbo.common.URL, ChannelHandler)

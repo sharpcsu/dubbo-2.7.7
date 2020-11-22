@@ -23,6 +23,7 @@ import org.apache.dubbo.remoting.transport.ChannelHandlerAdapter;
 import org.apache.dubbo.remoting.transport.ChannelHandlerDispatcher;
 
 /**
+ * 门面类，封装了Transporter对象的创建（通过Dubbo SPI）以及ChannelHandler的处理
  * Transporter facade. (API, Static, ThreadSafe)
  */
 public class Transporters {
@@ -76,6 +77,7 @@ public class Transporters {
     }
 
     public static Transporter getTransporter() {
+        //自动生成Transporter适配器并加载
         return ExtensionLoader.getExtensionLoader(Transporter.class).getAdaptiveExtension();
     }
 

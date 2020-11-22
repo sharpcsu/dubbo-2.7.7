@@ -22,6 +22,9 @@ import org.apache.dubbo.remoting.buffer.ChannelBuffer;
 
 import java.io.IOException;
 
+/**
+ * 特殊的ChannelHandler负责实现编解码功能，实现字节数据与有意义的消息之间的转换，或是消息之间的相互转换
+ */
 @SPI
 public interface Codec2 {
 
@@ -32,6 +35,9 @@ public interface Codec2 {
     Object decode(Channel channel, ChannelBuffer buffer) throws IOException;
 
 
+    /**
+     * 处理TCP传输时粘包和拆包使用
+     */
     enum DecodeResult {
         NEED_MORE_INPUT, SKIP_SOME_INPUT
     }

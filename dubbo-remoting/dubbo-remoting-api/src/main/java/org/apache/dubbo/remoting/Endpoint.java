@@ -21,6 +21,7 @@ import org.apache.dubbo.common.URL;
 import java.net.InetSocketAddress;
 
 /**
+ * 抽象了"端点"的概念“
  * Endpoint. (API/SPI, Prototype, ThreadSafe)
  *
  *
