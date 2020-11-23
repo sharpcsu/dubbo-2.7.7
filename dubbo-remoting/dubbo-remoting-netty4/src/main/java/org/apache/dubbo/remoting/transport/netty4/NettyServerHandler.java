@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NettyServerHandler extends ChannelDuplexHandler {
     private static final Logger logger = LoggerFactory.getLogger(NettyServerHandler.class);
     /**
+     * 记录了当前Server创建的所有Channel
      * the cache for alive worker channel.
      * <ip:port, dubbo channel>
      */
@@ -47,6 +48,9 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     private final URL url;
 
+    /**
+     * 机会所有方法都会触发该对象
+     */
     private final ChannelHandler handler;
 
     public NettyServerHandler(URL url, ChannelHandler handler) {
@@ -101,7 +105,9 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        //将发送的对象继续向下传递
         super.write(ctx, msg, promise);
+        //并不影响消息的继续发送，只是触发sent()方法进行相关的处理，这也是方法名称是动词过去式的原因
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         handler.sent(channel, msg);
     }

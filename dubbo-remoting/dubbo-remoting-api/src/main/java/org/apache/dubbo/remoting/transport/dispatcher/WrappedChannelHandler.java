@@ -113,14 +113,14 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
             // a typical scenario is the response returned after timeout, the timeout response may has completed the future
             if (responseFuture == null) {
                 return getSharedExecutorService();
-            } else {
+            } else {  //如果请求关联了线程池，则会获取相关的线程来处理响应
                 ExecutorService executor = responseFuture.getExecutor();
                 if (executor == null || executor.isShutdown()) {
                     executor = getSharedExecutorService();
                 }
                 return executor;
             }
-        } else {
+        } else {//如果是请求消息，则直接使用公共的线程池处理
             return getSharedExecutorService();
         }
     }

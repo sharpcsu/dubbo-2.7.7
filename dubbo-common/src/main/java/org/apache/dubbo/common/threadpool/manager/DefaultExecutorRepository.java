@@ -52,6 +52,9 @@ public class DefaultExecutorRepository implements ExecutorRepository {
 
     private ScheduledExecutorService reconnectScheduledExecutor;
 
+    /**
+     * 缓存已有的线程池，第一层key表示线程属于Provider还是Consumer，第二层key表示线程池关联服务的端口
+     */
     private ConcurrentMap<String, ConcurrentMap<Integer, ExecutorService>> data = new ConcurrentHashMap<>();
 
     public DefaultExecutorRepository() {
@@ -65,20 +68,22 @@ public class DefaultExecutorRepository implements ExecutorRepository {
     }
 
     /**
+     * 根据URL参数创建相应的线程池并缓存在合适的位置
      * Get called when the server or client instance initiating.
-     *
-     * @param url
-     * @return
      */
+    @Override
     public synchronized ExecutorService createExecutorIfAbsent(URL url) {
+        //根据URL中的side参数值决定第一层key
         String componentKey = EXECUTOR_SERVICE_COMPONENT_KEY;
         if (CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(SIDE_KEY))) {
             componentKey = CONSUMER_SIDE;
         }
         Map<Integer, ExecutorService> executors = data.computeIfAbsent(componentKey, k -> new ConcurrentHashMap<>());
+        //根据URL中的port值确定第二层key
         Integer portKey = url.getPort();
         ExecutorService executor = executors.computeIfAbsent(portKey, k -> createExecutor(url));
         // If executor has been shut down, create a new one
+        //如果缓存中相应的线程池已关闭，则同样需要调用createExecutor()方法创建新的线程池，并替换掉缓存总已关闭的线程池
         if (executor.isShutdown() || executor.isTerminated()) {
             executors.remove(portKey);
             executor = createExecutor(url);
@@ -159,6 +164,9 @@ public class DefaultExecutorRepository implements ExecutorRepository {
         return SHARED_EXECUTOR;
     }
 
+    /**
+     * 通过Dubbo SPI查找ThreadPool接口的扩展实现
+     */
     private ExecutorService createExecutor(URL url) {
         return (ExecutorService) ExtensionLoader.getExtensionLoader(ThreadPool.class).getAdaptiveExtension().getExecutor(url);
     }

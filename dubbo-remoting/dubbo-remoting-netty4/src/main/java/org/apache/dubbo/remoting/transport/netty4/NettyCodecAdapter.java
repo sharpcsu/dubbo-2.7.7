@@ -70,19 +70,26 @@ final public class NettyCodecAdapter {
         }
     }
 
+    /**
+     * 内部解码
+     */
     private class InternalDecoder extends ByteToMessageDecoder {
 
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf input, List<Object> out) throws Exception {
-
+            //将ByteBuf封装成统一的ChannelBuffer
             ChannelBuffer message = new NettyBackedChannelBuffer(input);
 
+            //拿到关联的Channel
             NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
 
             // decode object.
             do {
+                //记录当前的readerIndex的位置
                 int saveReaderIndex = message.readerIndex();
+                //委托给Codec2进行解码
                 Object msg = codec.decode(channel, message);
+                //当前接收到的数据不足一个消息的长度，会返回NEED_MORE_INPUT，会重置readerIndex，继续等待接收更多的数据
                 if (msg == Codec2.DecodeResult.NEED_MORE_INPUT) {
                     message.readerIndex(saveReaderIndex);
                     break;
@@ -91,7 +98,7 @@ final public class NettyCodecAdapter {
                     if (saveReaderIndex == message.readerIndex()) {
                         throw new IOException("Decode without read data.");
                     }
-                    if (msg != null) {
+                    if (msg != null) {//将读取到的消息传递给后面的Handler处理
                         out.add(msg);
                     }
                 }

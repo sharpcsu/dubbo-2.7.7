@@ -85,11 +85,13 @@ public class NettyClient extends AbstractClient {
     /**
      * Init bootstrap
      *
-     * @throws Throwable
+     * 通过Bootstrap构建客户端，其中会完成连接超时时间、keepalive等参数的设置，以及channelHandler的创建和注册
      */
     @Override
     protected void doOpen() throws Throwable {
+        //创建NettyClientHandler
         final NettyClientHandler nettyClientHandler = new NettyClientHandler(getUrl(), this);
+        //创建Bootstrap
         bootstrap = new Bootstrap();
         bootstrap.group(NIO_EVENT_LOOP_GROUP)
                 .option(ChannelOption.SO_KEEPALIVE, true)
@@ -98,24 +100,29 @@ public class NettyClient extends AbstractClient {
                 //.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getTimeout())
                 .channel(socketChannelClass());
 
+        //设置连接超时时间，使用到AbstractEndpoint中的connectTimeout字段
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.max(3000, getConnectTimeout()));
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
 
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
+                //心跳请求的时间间隔
                 int heartbeatInterval = UrlUtils.getHeartbeat(getUrl());
 
                 if (getUrl().getParameter(SSL_ENABLED_KEY, false)) {
                     ch.pipeline().addLast("negotiation", SslHandlerInitializer.sslClientHandler(getUrl(), nettyClientHandler));
                 }
 
+                //通过NettyCodecAdapter创建Netty中的编解码其
                 NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyClient.this);
+                //注册ChannelHandler
                 ch.pipeline()//.addLast("logging",new LoggingHandler(LogLevel.INFO))//for debug
                         .addLast("decoder", adapter.getDecoder())
                         .addLast("encoder", adapter.getEncoder())
                         .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
                         .addLast("handler", nettyClientHandler);
 
+                //如果需要Socks5Proxy，添加Socks5ProxyHandler
                 String socksProxyHost = ConfigUtils.getProperty(SOCKS_PROXY_HOST);
                 if(socksProxyHost != null) {
                     int socksProxyPort = Integer.parseInt(ConfigUtils.getProperty(SOCKS_PROXY_PORT, DEFAULT_SOCKS_PROXY_PORT));

@@ -44,15 +44,23 @@ final class NettyChannel extends AbstractChannel {
     private static final Logger logger = LoggerFactory.getLogger(NettyChannel.class);
     /**
      * the cache for netty channel and dubbo channel
+     * 缓存当前JVM中Netty框架Channel与Dubbo Channel之间的映射关系
      */
     private static final ConcurrentMap<Channel, NettyChannel> CHANNEL_MAP = new ConcurrentHashMap<Channel, NettyChannel>();
     /**
      * netty channel
+     * Netty框架中的Channel，与当前的Dubbo Channel对象一一对应
      */
     private final Channel channel;
 
+    /**
+     * 当前Channel中附件属性，都会记录在该Map中。提供的getAttribute()、hasAttribute()、setAttribute()等方法都是操作该集合
+     */
     private final Map<String, Object> attributes = new ConcurrentHashMap<String, Object>();
 
+    /**
+     * 标识当前Channel是否可用
+     */
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     /**
@@ -145,23 +153,27 @@ final class NettyChannel extends AbstractChannel {
     }
 
     /**
+     * 通过底层关联的Netty框架Channel，将数据发送到对端
      * Send message by netty and whether to wait the completion of the send.
      *
      * @param message message that need send.
-     * @param sent    whether to ack async-sent
+     * @param sent    whether to ack async-sent 指定是否等待发送操作结束
      * @throws RemotingException throw RemotingException if wait until timeout or any exception thrown by method body that surrounded by try-catch.
      */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         // whether the channel is closed
+        //调用AbstractChannel的send()方法检测连接是否可用
         super.send(message, sent);
 
         boolean success = true;
         int timeout = 0;
         try {
+            //依赖Netty框架的Channel发送数据
             ChannelFuture future = channel.writeAndFlush(message);
             if (sent) {
                 // wait timeout ms
+                //等待发送结束，有超时时间
                 timeout = getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
                 success = future.await(timeout);
             }
@@ -170,6 +182,7 @@ final class NettyChannel extends AbstractChannel {
                 throw cause;
             }
         } catch (Throwable e) {
+            //出现异常会调用removeChannelIfDisconnected()，在底层连接断开时，会清理CHANNEL_MAP缓存
             removeChannelIfDisconnected(channel);
             throw new RemotingException(this, "Failed to send message " + PayloadDropper.getRequestWithoutData(message) + " to " + getRemoteAddress() + ", cause: " + e.getMessage(), e);
         }

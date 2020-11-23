@@ -24,10 +24,11 @@ import org.apache.dubbo.remoting.transport.dispatcher.all.AllDispatcher;
 /**
  * ChannelHandlerWrapper (SPI, Singleton, ThreadSafe)
  */
-@SPI(AllDispatcher.NAME)
+@SPI(AllDispatcher.NAME)  //默认扩展名是all
 public interface Dispatcher {
 
     /**
+     * 通过过URL中的参数可以指定扩展名，覆盖默认扩展名
      * dispatch the message to threadpool.
      *
      * @param handler

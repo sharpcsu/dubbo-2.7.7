@@ -39,6 +39,7 @@ public interface ChannelHandler {
     void connected(Channel channel) throws RemotingException;
 
     /**
+     * 处理连接断开事件
      * on channel disconnected.
      *
      * @param channel channel.
@@ -54,6 +55,7 @@ public interface ChannelHandler {
     void sent(Channel channel, Object message) throws RemotingException;
 
     /**
+     * 当前端点收到数据的时候调用
      * on message received.
      *
      * @param channel channel.
@@ -62,6 +64,7 @@ public interface ChannelHandler {
     void received(Channel channel, Object message) throws RemotingException;
 
     /**
+     * 处理异常事件
      * on exception caught.
      *
      * @param channel   channel.

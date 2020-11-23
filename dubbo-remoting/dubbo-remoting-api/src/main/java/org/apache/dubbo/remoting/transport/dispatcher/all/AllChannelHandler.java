@@ -37,14 +37,19 @@ public class AllChannelHandler extends WrappedChannelHandler {
 
     @Override
     public void connected(Channel channel) throws RemotingException {
+        //获取公共线程池
         ExecutorService executor = getExecutorService();
         try {
+            //将CONNECTED事件的处理封装成ChannelEventRunnable提交到线程池中执行
             executor.execute(new ChannelEventRunnable(channel, handler, ChannelState.CONNECTED));
         } catch (Throwable t) {
             throw new ExecutionException("connect event", channel, getClass() + " error when process connected event .", t);
         }
     }
 
+    /**
+     * 处理连接断开事件
+     */
     @Override
     public void disconnected(Channel channel) throws RemotingException {
         ExecutorService executor = getExecutorService();
@@ -55,12 +60,21 @@ public class AllChannelHandler extends WrappedChannelHandler {
         }
     }
 
+    /**
+     * 当前端点收到数据时被调用，
+     * 执行流程是：先由IO线程从二进制流中解码出请求，
+     * 然后调用AllChannelHandler的received()方法，
+     * 会将请求提交给线程池执行，执行完后调用sent()方法，向对端写回响应结果
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+        //获取线程池
         ExecutorService executor = getPreferredExecutorService(message);
         try {
+            //将消息封装成ChannelEventRunnable任务，提交到线程池中执行
             executor.execute(new ChannelEventRunnable(channel, handler, ChannelState.RECEIVED, message));
         } catch (Throwable t) {
+            //如果线程池满了，请求会被拒绝，这里会根据请求配置决定是否返回一个说明性的响应
         	if(message instanceof Request && t instanceof RejectedExecutionException){
                 sendFeedback(channel, (Request) message, t);
                 return;
@@ -69,6 +83,9 @@ public class AllChannelHandler extends WrappedChannelHandler {
         }
     }
 
+    /**
+     * 处理异常事件
+     */
     @Override
     public void caught(Channel channel, Throwable exception) throws RemotingException {
         ExecutorService executor = getExecutorService();

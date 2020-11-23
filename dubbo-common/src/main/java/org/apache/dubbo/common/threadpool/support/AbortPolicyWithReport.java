@@ -66,8 +66,12 @@ public class AbortPolicyWithReport extends ThreadPoolExecutor.AbortPolicy {
         this.url = url;
     }
 
+    /**
+     * 拒绝执行
+     */
     @Override
     public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+        //输出线程池相关信息
         String msg = String.format("Thread pool is EXHAUSTED!" +
                 " Thread Name: %s, Pool Size: %d (active: %d, core: %d, max: %d, largest: %d), Task: %d (completed: "
                 + "%d)," +

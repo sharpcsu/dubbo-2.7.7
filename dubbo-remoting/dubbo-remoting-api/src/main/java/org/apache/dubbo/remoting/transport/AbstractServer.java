@@ -41,22 +41,44 @@ import static org.apache.dubbo.remoting.Constants.DEFAULT_IDLE_TIMEOUT;
 import static org.apache.dubbo.remoting.Constants.IDLE_TIMEOUT_KEY;
 
 /**
+ * 对服务端的抽象，实现了服务端的公共逻辑
  * AbstractServer
  */
 public abstract class AbstractServer extends AbstractEndpoint implements RemotingServer {
 
     protected static final String SERVER_THREAD_POOL_NAME = "DubboServerHandler";
     private static final Logger logger = LoggerFactory.getLogger(AbstractServer.class);
+
+    /**
+     * 当前Server关联的线程池
+     */
     ExecutorService executor;
+
+    /**
+     * server的本地地址
+     */
     private InetSocketAddress localAddress;
+
+    /**
+     * server的绑定地址
+     */
     private InetSocketAddress bindAddress;
+
+    /**
+     * server接收的最大连接数 0表示没有限制
+     */
     private int accepts;
     private int idleTimeout;
 
+    /**
+     * 线程池
+     */
     private ExecutorRepository executorRepository = ExtensionLoader.getExtensionLoader(ExecutorRepository.class).getDefaultExtension();
 
     public AbstractServer(URL url, ChannelHandler handler) throws RemotingException {
+        //调用父类的构造方法
         super(url, handler);
+        //根据传入的URL初始化localAddress和bindAddress
         localAddress = getUrl().toInetSocketAddress();
 
         String bindIp = getUrl().getParameter(Constants.BIND_IP_KEY, getUrl().getHost());
@@ -65,9 +87,11 @@ public abstract class AbstractServer extends AbstractEndpoint implements Remotin
             bindIp = ANYHOST_VALUE;
         }
         bindAddress = new InetSocketAddress(bindIp, bindPort);
+        //初始化accepts等字段
         this.accepts = url.getParameter(ACCEPTS_KEY, DEFAULT_ACCEPTS);
         this.idleTimeout = url.getParameter(IDLE_TIMEOUT_KEY, DEFAULT_IDLE_TIMEOUT);
         try {
+            //启动Server
             doOpen();
             if (logger.isInfoEnabled()) {
                 logger.info("Start " + getClass().getSimpleName() + " bind " + getBindAddress() + ", export " + getLocalAddress());
@@ -76,6 +100,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Remotin
             throw new RemotingException(url.toInetSocketAddress(), null, "Failed to bind " + getClass().getSimpleName()
                     + " on " + getLocalAddress() + ", cause: " + t.getMessage(), t);
         }
+        //获取Server关联的线程池
         executor = executorRepository.createExecutorIfAbsent(url);
     }
 
