@@ -81,10 +81,12 @@ public class MockedClient implements ExchangeClient {
         this.sent = msg;
     }
 
+    @Override
     public CompletableFuture<Object> request(Object msg) throws RemotingException {
         return request(msg, null);
     }
 
+    @Override
     public CompletableFuture<Object> request(Object msg, int timeout) throws RemotingException {
         return this.request(msg, timeout, null);
     }

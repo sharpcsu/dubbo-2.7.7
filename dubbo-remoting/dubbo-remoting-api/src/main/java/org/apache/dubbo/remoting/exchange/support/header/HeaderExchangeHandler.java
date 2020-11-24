@@ -40,6 +40,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.READONLY_EVENT;
 
 
 /**
+ * ExchangeHandler的装饰器
  * ExchangeReceiver
  */
 public class HeaderExchangeHandler implements ChannelHandlerDelegate {
@@ -69,15 +70,24 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                         .equals(NetUtils.filterLocalHost(address.getAddress().getHostAddress()));
     }
 
+    /**
+     * 处理只读请求
+     */
     void handlerEvent(Channel channel, Request req) throws RemotingException {
         if (req.getData() != null && req.getData().equals(READONLY_EVENT)) {
             channel.setAttribute(Constants.CHANNEL_ATTRIBUTE_READONLY_KEY, Boolean.TRUE);
         }
     }
 
+    /**
+     * 处理双向请求
+     * 解码失败时返回异常响应，
+     * 正常解码的请求交给上层实现的ExchangeHandler进行处理，并添加回调。
+     * 上层ExchangeHandler处理完请求后，会触发回调，根据处理结果填充响应结果和响应码，并向对端发送。
+     */
     void handleRequest(final ExchangeChannel channel, Request req) throws RemotingException {
         Response res = new Response(req.getId(), req.getVersion());
-        if (req.isBroken()) {
+        if (req.isBroken()) {  //请求解码失败
             Object data = req.getData();
 
             String msg;
@@ -88,25 +98,29 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
             } else {
                 msg = data.toString();
             }
+            //设置异常信息和响应码
             res.setErrorMessage("Fail to decode request due to: " + msg);
             res.setStatus(Response.BAD_REQUEST);
 
+            //将异常响应返回给对端
             channel.send(res);
             return;
         }
         // find handler by message class.
         Object msg = req.getData();
         try {
+            //交给上层实现的ExchangeHandler进行处理
             CompletionStage<Object> future = handler.reply(channel, msg);
-            future.whenComplete((appResult, t) -> {
+            future.whenComplete((appResult, t) -> {  //处理结束后的回调
                 try {
-                    if (t == null) {
+                    if (t == null) {  //返回正常响应
                         res.setStatus(Response.OK);
                         res.setResult(appResult);
-                    } else {
+                    } else {  //处理过程发生异常，设置异常信息和错误码
                         res.setStatus(Response.SERVICE_ERROR);
                         res.setErrorMessage(StringUtils.toString(t));
                     }
+                    //发送响应
                     channel.send(res);
                 } catch (RemotingException e) {
                     logger.warn("Send result to consumer failed, channel is " + channel + ", msg is " + e);
@@ -162,6 +176,17 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         }
     }
 
+    /**
+     * 处理Request
+     *      handlerEvent()方法：事件
+     *      handlerRequest()方法：双向
+     *      上层ExchangeHandler的received()方法：单向
+     * 处理Response
+     *      handleResponse()方法
+     * 处理String请求
+     *      异常：Client端
+     *      上层ExchangeHandler的telnet()方法：Server端
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         final ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);

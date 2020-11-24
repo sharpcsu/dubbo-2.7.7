@@ -48,24 +48,57 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultFuture.class);
 
+    /**
+     * 管理请求与Channel之间的关联关系，其中Key为请求ID，value为发送请求的static集合
+     */
     private static final Map<Long, Channel> CHANNELS = new ConcurrentHashMap<>();
 
+    /**
+     * 管理请求与DefaultFuture之间的关联关系，其中Key为请求ID，Value为请求对应的Future
+     */
     private static final Map<Long, DefaultFuture> FUTURES = new ConcurrentHashMap<>();
 
+    /**
+     * Dubbo中时间轮的实现，static类型，所有DefaultFuture对象共用一个
+     */
     public static final Timer TIME_OUT_TIMER = new HashedWheelTimer(
             new NamedThreadFactory("dubbo-future-timeout", true),
             30,
             TimeUnit.MILLISECONDS);
 
     // invoke id.
+    /**
+     * 请求的id
+     */
     private final Long id;
+    /**
+     * 发送请求的Channel
+     */
     private final Channel channel;
+    /**
+     * 请求
+     */
     private final Request request;
+    /**
+     * 整个请求-响应交互完成的超时时间
+     */
     private final int timeout;
+    /**
+     * 该DefaultFuture的创建时间
+     */
     private final long start = System.currentTimeMillis();
+    /**
+     * 请求发送的时间
+     */
     private volatile long sent;
+    /**
+     * 该定时任务到期时，表示对端响应超时
+     */
     private Timeout timeoutCheckTask;
 
+    /**
+     * 请求关联的线程池
+     */
     private ExecutorService executor;
 
     public ExecutorService getExecutor() {
@@ -87,6 +120,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
     }
 
     /**
+     * 创建TimeoutCheckTask定时任务，并添加到时间轮中
      * check time out of the future
      */
     private static void timeoutCheck(DefaultFuture future) {
@@ -95,6 +129,8 @@ public class DefaultFuture extends CompletableFuture<Object> {
     }
 
     /**
+     * 创建DefaultFuture，完成字段初始化并创建请求相应的定时任务
+     *
      * init a DefaultFuture
      * 1.init a DefaultFuture
      * 2.timeout check
@@ -105,13 +141,16 @@ public class DefaultFuture extends CompletableFuture<Object> {
      * @return a new DefaultFuture
      */
     public static DefaultFuture newFuture(Channel channel, Request request, int timeout, ExecutorService executor) {
+        //创建DefaultFuture对象，并初始化其中的核心字段
         final DefaultFuture future = new DefaultFuture(channel, request, timeout);
         future.setExecutor(executor);
         // ThreadlessExecutor needs to hold the waiting future in case of circuit return.
+        //对于ThreadlessExecutor的特殊处理，ThreadlessExecutor可以关联一个waitingFuture，就是这里创建DefaultFuture对象
         if (executor instanceof ThreadlessExecutor) {
             ((ThreadlessExecutor) executor).setWaitingFuture(future);
         }
         // timeout check
+        //创建一个定时任务，用于处理响应超时情况
         timeoutCheck(future);
         return future;
     }
@@ -165,15 +204,18 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
     public static void received(Channel channel, Response response, boolean timeout) {
         try {
+            //清理FUTURES中记录的请求ID与DefaultFuture之间的映射关系
             DefaultFuture future = FUTURES.remove(response.getId());
             if (future != null) {
                 Timeout t = future.timeoutCheckTask;
                 if (!timeout) {
+                    //未超时，取消定时任务
                     // decrease Time
                     t.cancel();
                 }
+                //调用doReceived()方法
                 future.doReceived(response);
-            } else {
+            } else {//查找不到关联的DefaultFuture会打印日志
                 logger.warn("The timeout response finally returned at "
                         + (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()))
                         + ", response status is " + response.getStatus()
@@ -181,6 +223,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
                         + " -> " + channel.getRemoteAddress()) + ", please check provider side for detailed result.");
             }
         } finally {
+            //清理CHANNELS中记录的请求ID与Channel之间的映射关系
             CHANNELS.remove(response.getId());
         }
     }
@@ -205,18 +248,22 @@ public class DefaultFuture extends CompletableFuture<Object> {
             throw new IllegalStateException("response cannot be null");
         }
         if (res.getStatus() == Response.OK) {
+            //正常响应
             this.complete(res.getResult());
         } else if (res.getStatus() == Response.CLIENT_TIMEOUT || res.getStatus() == Response.SERVER_TIMEOUT) {
             this.completeExceptionally(new TimeoutException(res.getStatus() == Response.SERVER_TIMEOUT, channel, res.getErrorMessage()));
         } else {
+            //其它异常
             this.completeExceptionally(new RemotingException(channel, res.getErrorMessage()));
         }
 
+        //针对ThreadlessExecutor的兜底逻辑，主要是防止业务线程一直阻塞在ThreadlessExecutor上
         // the result is returning, but the caller thread may still waiting
         // to avoid endless waiting for whatever reason, notify caller thread to return.
         if (executor != null && executor instanceof ThreadlessExecutor) {
             ThreadlessExecutor threadlessExecutor = (ThreadlessExecutor) executor;
             if (threadlessExecutor.isWaiting()) {
+                //notifyReturn()方法会向ThreadlessExecutor提交一个任务，这样业务线程不会阻塞，提交的任务会尝试将DefaultFuture设置为异常结束
                 threadlessExecutor.notifyReturn(new IllegalStateException("The result has returned, but the biz thread is still waiting" +
                         " which is not an expected state, interrupt the thread manually by returning an exception."));
             }
@@ -281,7 +328,9 @@ public class DefaultFuture extends CompletableFuture<Object> {
                 return;
             }
 
+            //检查该任务关联的DefaultFuture对象是否已经完成
             if (future.getExecutor() != null) {
+                //提交到线程池执行，注意ThreadlessExecutor的情况
                 future.getExecutor().execute(() -> notifyTimeout(future));
             } else {
                 notifyTimeout(future);
@@ -290,11 +339,13 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
         private void notifyTimeout(DefaultFuture future) {
             // create exception response.
+            //没有收到对端的响应，创建一个Response，表示超时的响应
             Response timeoutResponse = new Response(future.getId());
             // set timeout status.
             timeoutResponse.setStatus(future.isSent() ? Response.SERVER_TIMEOUT : Response.CLIENT_TIMEOUT);
             timeoutResponse.setErrorMessage(future.getTimeoutMessage(true));
             // handle response.
+            //将关联的DefaultFuture标记为超时异常完成
             DefaultFuture.received(future.getChannel(), timeoutResponse, true);
         }
     }

@@ -37,6 +37,9 @@ import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 
 /**
+ * Channel的装饰器，封装了一个Channel对象
+ * send()和request()方法的实现都是依赖底层修饰的Channel对象
+ *
  * ExchangeReceiver
  */
 final class HeaderExchangeChannel implements ExchangeChannel {
@@ -126,10 +129,12 @@ final class HeaderExchangeChannel implements ExchangeChannel {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send request " + request + ", cause: The channel " + this + " is closed!");
         }
         // create request.
+        //创建Request对象
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
         req.setTwoWay(true);
         req.setData(request);
+        //创建DefaultFuture
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout, executor);
         try {
             channel.send(req);

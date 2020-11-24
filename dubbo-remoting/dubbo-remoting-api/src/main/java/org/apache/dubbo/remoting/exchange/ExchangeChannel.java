@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 public interface ExchangeChannel extends Channel {
 
     /**
+     * 发送请求
      * send request.
      *
      * @param request
