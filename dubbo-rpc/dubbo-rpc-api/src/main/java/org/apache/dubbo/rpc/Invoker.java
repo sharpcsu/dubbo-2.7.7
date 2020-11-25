@@ -28,6 +28,7 @@ import org.apache.dubbo.common.Node;
 public interface Invoker<T> extends Node {
 
     /**
+     * 服务接口
      * get service interface.
      *
      * @return service interface.
@@ -35,6 +36,7 @@ public interface Invoker<T> extends Node {
     Class<T> getInterface();
 
     /**
+     * 进行一次调用，也有人称之为一次"会话"，可以理解为一次调用
      * invoke.
      *
      * @param invocation

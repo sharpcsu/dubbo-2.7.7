@@ -26,10 +26,11 @@ import java.util.List;
 /**
  * Protocol. (API/SPI, Singleton, ThreadSafe)
  */
-@SPI("dubbo")
+@SPI("dubbo")  //默认使用DubboProtocol实现
 public interface Protocol {
 
     /**
+     * 默认端口
      * Get default port when user doesn't config the port.
      *
      * @return default port
@@ -37,6 +38,8 @@ public interface Protocol {
     int getDefaultPort();
 
     /**
+     * 将一个Invoker暴露出去，export()方法实现需要是幂等的，即同一个服务暴露多次和暴露一次效果是一样的
+     *
      * Export service for remote invocation: <br>
      * 1. Protocol should record request source address after receive a request:
      * RpcContext.getContext().setRemoteAddress();<br>
@@ -53,6 +56,8 @@ public interface Protocol {
     <T> Exporter<T> export(Invoker<T> invoker) throws RpcException;
 
     /**
+     * 引用一个Invoker，refer()方法会根据参数返回一个Invoker对象，consumer端可以通过Invoker请求到Provider端的服务
+     *
      * Refer a remote service: <br>
      * 1. When user calls `invoke()` method of `Invoker` object which's returned from `refer()` call, the protocol
      * needs to correspondingly execute `invoke()` method of `Invoker` object <br>
@@ -71,6 +76,8 @@ public interface Protocol {
     <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException;
 
     /**
+     * 销毁export()方法以及refer()方法使用到的Invoker对象，释放当前Protocol对象底层占用的资源
+     *
      * Destroy protocol: <br>
      * 1. Cancel all services this protocol exports and refers <br>
      * 2. Release all occupied resources, for example: connection, port, etc. <br>
@@ -79,6 +86,7 @@ public interface Protocol {
     void destroy();
 
     /**
+     * 返回当前Protocol底层的全部ProtocolServer
      * Get all servers serving this protocol
      *
      * @return

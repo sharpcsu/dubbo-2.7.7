@@ -31,6 +31,9 @@ import java.util.function.Function;
 
 
 /**
+ * Invoker.invoke()方法的返回值，抽象了一次调用的返回值
+ * 包含了被调用方返回值（或是异常）以及附加信息，也可以添加回调方法，在RPC调用方法结束时会触发这些回调。
+ *
  * (API, Prototype, NonThreadSafe)
  *
  * An RPC {@link Result}.
@@ -47,15 +50,20 @@ import java.util.function.Function;
 public interface Result extends Serializable {
 
     /**
+     * 获取此次调用的返回值
      * Get invoke result.
      *
      * @return result. if no result return null.
      */
     Object getValue();
 
+    /**
+     * 设置此次调用的返回值
+     */
     void setValue(Object value);
 
     /**
+     * 如果此次调用发生异常，则可以通过下面三个方法获取
      * Get exception.
      *
      * @return exception. if no exception return null.
@@ -72,6 +80,9 @@ public interface Result extends Serializable {
     boolean hasException();
 
     /**
+     * 复合操作
+     * 如果此次调用发生异常，则直接抛出异常
+     * 如果没有异常，则返回结果
      * Recreate.
      * <p>
      * <code>
@@ -88,6 +99,7 @@ public interface Result extends Serializable {
     Object recreate() throws Throwable;
 
     /**
+     * Result中同样可以携带附加信息
      * get attachments.
      *
      * @return attachments.
@@ -171,6 +183,7 @@ public interface Result extends Serializable {
     void setObjectAttachment(String key, Object value);
 
     /**
+     * 添加一个回调，当RPC调用完成时，会触发添加的回调
      * Add a callback which can be triggered when the RPC call finishes.
      * <p>
      * Just as the method name implies, this method will guarantee the callback being triggered under the same context as when the call was started,
@@ -183,6 +196,12 @@ public interface Result extends Serializable {
 
     <U> CompletableFuture<U> thenApply(Function<Result, ? extends U> fn);
 
+    /**
+     * 阻塞线程，等待此次RPC调用完成（或是超时）
+     * @return
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
     Result get() throws InterruptedException, ExecutionException;
 
     Result get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
