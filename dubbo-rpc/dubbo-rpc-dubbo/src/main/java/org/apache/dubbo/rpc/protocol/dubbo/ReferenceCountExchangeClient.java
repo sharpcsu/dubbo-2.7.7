@@ -154,8 +154,13 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
         close(0);
     }
 
+    /**
+     * 在关闭底层 ExchangeClient 对象之后，会立即创建一个 LazyConnectExchangeClient ，也有人称其为“幽灵连接”。
+     * 主要用于异常情况的兜底
+     */
     @Override
     public void close(int timeout) {
+        //引用次数减到0，关闭底层的ExchangeClient，具体操作有：停掉心跳任务、重连任务以及关闭底层Channel
         if (referenceCount.decrementAndGet() <= 0) {
             if (timeout == 0) {
                 client.close();
@@ -164,6 +169,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
                 client.close(timeout);
             }
 
+            //创建LazyConnectExchangeClient，将client字段指向该对象
             replaceWithLazyClient();
         }
     }
@@ -181,6 +187,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
      */
     private void replaceWithLazyClient() {
         // this is a defensive operation to avoid client is closed by accident, the initial state of the client is false
+        //在原有的URL之上，添加一些LazyConnectExchangeClient特有的参数
         URL lazyUrl = URLBuilder.from(url)
                 .addParameter(LAZY_CONNECT_INITIAL_STATE_KEY, Boolean.TRUE)
                 .addParameter(RECONNECT_KEY, Boolean.FALSE)
@@ -191,9 +198,11 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
                 .build();
 
         /**
+         * 如果当前字段已经指向了LazyConnectExchangeClient，则不需要再次创建Lazy兜底了
          * the order of judgment in the if statement cannot be changed.
          */
         if (!(client instanceof LazyConnectExchangeClient) || client.isClosed()) {
+            //ChannelHandler依旧使用原始ExchangeClient使用Handler，即DubboProtocol中的requestHandler字段
             client = new LazyConnectExchangeClient(lazyUrl, client.getExchangeHandler());
         }
     }
