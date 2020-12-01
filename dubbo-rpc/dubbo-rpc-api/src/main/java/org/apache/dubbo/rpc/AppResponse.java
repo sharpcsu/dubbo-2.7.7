@@ -27,6 +27,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
+ * 服务端返回的具体响应
+ *
  * {@link AsyncRpcResult} is introduced in 3.0.0 to replace RpcResult, and RpcResult is replaced with {@link AppResponse}:
  * <ul>
  *     <li>AsyncRpcResult is the object that is actually passed in the call chain</li>
@@ -49,10 +51,19 @@ public class AppResponse implements Result {
 
     private static final long serialVersionUID = -6925924956850004727L;
 
+    /**
+     * 响应结果，一个业务上的响应结果
+     */
     private Object result;
 
+    /**
+     * 服务端返回的异常信息
+     */
     private Throwable exception;
 
+    /**
+     * 服务端返回的附加信息
+     */
     private Map<String, Object> attachments = new HashMap<>();
 
     public AppResponse() {
@@ -68,7 +79,7 @@ public class AppResponse implements Result {
 
     @Override
     public Object recreate() throws Throwable {
-        if (exception != null) {
+        if (exception != null) {  //存在异常则直接抛出异常
             // fix issue#619
             try {
                 // get Throwable class
@@ -88,7 +99,7 @@ public class AppResponse implements Result {
             }
             throw exception;
         }
-        return result;
+        return result;  //正常返回无异常时，直接返回result
     }
 
     @Override

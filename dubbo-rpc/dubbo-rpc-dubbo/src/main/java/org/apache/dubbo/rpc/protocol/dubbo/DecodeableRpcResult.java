@@ -38,6 +38,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 
+/**
+ * 表示一个响应
+ */
 public class DecodeableRpcResult extends AppResponse implements Codec, Decodeable {
 
     private static final Logger log = LoggerFactory.getLogger(DecodeableRpcResult.class);
@@ -70,6 +73,15 @@ public class DecodeableRpcResult extends AppResponse implements Codec, Decodeabl
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * 解码
+     *
+     * 1. 首先，确定当前使用的序列化方式，并对字节流进行解码。
+     * 2. 然后，读取一个 byte 的标志位，其可选值有六种枚举，下面我们就以其中的 RESPONSE_VALUE_WITH_ATTACHMENTS 为例进行分析。
+     * 3. 标志位为 RESPONSE_VALUE_WITH_ATTACHMENTS 时，会先通过 handleValue() 方法处理返回值，
+     *        其中会根据 RpcInvocation 中记录的返回值类型读取返回值，并设置到 result 字段。
+     * 4. 最后，再通过 handleAttachment() 方法读取返回的附加信息，并设置到 DecodeableRpcResult 的 attachments 字段中。
+     */
     @Override
     public Object decode(Channel channel, InputStream input) throws IOException {
         if (log.isDebugEnabled()) {
@@ -77,10 +89,13 @@ public class DecodeableRpcResult extends AppResponse implements Codec, Decodeabl
             log.debug("Decoding in thread -- [" + thread.getName() + "#" + thread.getId() + "]");
         }
 
+        //反序列化
         ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)
                 .deserialize(channel.getUrl(), input);
 
+        //读取一个byte的标志位
         byte flag = in.readByte();
+        //根据标志位判断当前结果中包含的信息，并调用不同的方法进行处理
         switch (flag) {
             case DubboCodec.RESPONSE_NULL_VALUE:
                 break;

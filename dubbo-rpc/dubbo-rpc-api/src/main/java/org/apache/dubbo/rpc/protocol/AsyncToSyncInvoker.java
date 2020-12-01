@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Invoker的装饰器，负责将异步调用转换成同步调用
  * This class will work as a wrapper wrapping outside of each protocol invoker.
  *
  * @param <T>
@@ -54,6 +55,7 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
         try {
             if (InvokeMode.SYNC == ((RpcInvocation) invocation).getInvokeMode()) {
                 /**
+                 * 调用get()方法，阻塞等待响应返回
                  * NOTICE!
                  * must call {@link java.util.concurrent.CompletableFuture#get(long, TimeUnit)} because
                  * {@link java.util.concurrent.CompletableFuture#get()} was proved to have serious performance drop.

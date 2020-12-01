@@ -41,6 +41,10 @@ import static org.apache.dubbo.rpc.Constants.RETURN_KEY;
 
 
 /**
+ * 线程级别的上下文信息，每个线程绑定一个RpcContext对象，底层依赖ThreadLocal实现
+ * 主要用于存储一次请求中的临时状态，
+ * 当线程处理新的请求或是发起新的请求，RpcContext中存储的内容会更新。
+ *
  * Thread local context. (API, ThreadLocal, ThreadSafe)
  * <p>
  * Note: RpcContext is a temporary state holder. States in RpcContext changes every time when request is sent or received.
@@ -53,6 +57,7 @@ import static org.apache.dubbo.rpc.Constants.RETURN_KEY;
 public class RpcContext {
 
     /**
+     * 发起请求时，会使用该RpcContext存储上下文信息
      * use internal thread local to improve performance
      */
     // FIXME REQUEST_CONTEXT
@@ -63,6 +68,9 @@ public class RpcContext {
         }
     };
 
+    /**
+     * 接收响应时，使用该RpcContext存储上下文信息
+     */
     // FIXME RESPONSE_CONTEXT
     private static final InternalThreadLocal<RpcContext> SERVER_LOCAL = new InternalThreadLocal<RpcContext>() {
         @Override
@@ -71,21 +79,42 @@ public class RpcContext {
         }
     };
 
+    /**
+     * 记录调用上下文的附加信息，这些信息会被添加到Invocation中，并传递远端节点
+     */
     protected final Map<String, Object> attachments = new HashMap<>();
+    /**
+     * 记录上下文的键值对信息，不会被传递到远端节点
+     */
     private final Map<String, Object> values = new HashMap<String, Object>();
 
     private List<URL> urls;
 
     private URL url;
 
+    /**
+     * 记录调用的方法名
+     */
     private String methodName;
 
+    /**
+     * 记录调用的参数类型列表
+     */
     private Class<?>[] parameterTypes;
 
+    /**
+     * 记录调用的具体参数列表
+     */
     private Object[] arguments;
 
+    /**
+     * 记录本地地址
+     */
     private InetSocketAddress localAddress;
 
+    /**
+     * 记录远端地址
+     */
     private InetSocketAddress remoteAddress;
 
     private String remoteApplicationName;
@@ -99,8 +128,17 @@ public class RpcContext {
 
     // now we don't use the 'values' map to hold these objects
     // we want these objects to be as generic as possible
+    /**
+     * 记录底层关联的请求
+     */
     private Object request;
+    /**
+     * 记录底层关联的响应
+     */
     private Object response;
+    /**
+     * 异步Context，可以存储异步调用相关的RpcContext以及异步请求相关的Future
+     */
     private AsyncContext asyncContext;
 
     private boolean remove = true;

@@ -33,6 +33,7 @@ import java.util.function.Function;
 import static org.apache.dubbo.common.utils.ReflectUtils.defaultReturn;
 
 /**
+ * 表示一个异步的、未完成的RPC调用
  * This class represents an unfinished RPC call, it will hold some context information for this call, for example RpcContext and Invocation,
  * so that when the call finishes and the result returns, it can guarantee all the contexts being recovered as the same as when the call was made
  * before any callback is invoked.
@@ -50,15 +51,28 @@ public class AsyncRpcResult implements Result {
     private static final Logger logger = LoggerFactory.getLogger(AsyncRpcResult.class);
 
     /**
+     * 存储相关的RpcContext对象
      * RpcContext may already have been changed when callback happens, it happens when the same thread is used to execute another RPC call.
      * So we should keep the reference of current RpcContext instance and restore it before callback being executed.
      */
     private RpcContext storedContext;
+    /**
+     * 存储相关的RpcContext对象
+     */
     private RpcContext storedServerContext;
+    /**
+     * 此次RPC调用关联的线程池
+     */
     private Executor executor;
 
+    /**
+     * 此次RPC调用关联的Invocation对象
+     */
     private Invocation invocation;
 
+    /**
+     * 是DefaultFuture回调链上的一个Future
+     */
     private CompletableFuture<AppResponse> responseFuture;
 
     public AsyncRpcResult(CompletableFuture<AppResponse> future, Invocation invocation) {
@@ -142,8 +156,8 @@ public class AsyncRpcResult implements Result {
 
     public Result getAppResponse() {
         try {
-            if (responseFuture.isDone()) {
-                return responseFuture.get();
+            if (responseFuture.isDone()) {  //检测responseFuture是否已完成
+                return responseFuture.get();  //获取AppResponse
             }
         } catch (Exception e) {
             // This should not happen in normal request process;
@@ -151,6 +165,7 @@ public class AsyncRpcResult implements Result {
             throw new RpcException(e);
         }
 
+        //根据调用方法的返回值，生成默认值
         return createDefaultValue(invocation);
     }
 
@@ -166,9 +181,12 @@ public class AsyncRpcResult implements Result {
     @Override
     public Result get() throws InterruptedException, ExecutionException {
         if (executor != null && executor instanceof ThreadlessExecutor) {
+            //针对ThreadlessExecutor的特殊处理，调用waitAndDrain()等待响应
             ThreadlessExecutor threadlessExecutor = (ThreadlessExecutor) executor;
             threadlessExecutor.waitAndDrain();
         }
+
+        //非ThreadlessExecutor线程池的场景中，则直接调用Future（最底层是DefaultFuture）的get()方法阻塞
         return responseFuture.get();
     }
 
@@ -188,10 +206,16 @@ public class AsyncRpcResult implements Result {
             return RpcContext.getContext().getFuture();
         }
 
+        //调用AppResponse.recreate()方法
         return getAppResponse().recreate();
     }
 
+    /**
+     * 可以为AsyncRpcResult添加回调方法，回调方法被包装一层并注册到responseFuture上
+     */
+    @Override
     public Result whenCompleteWithContext(BiConsumer<Result, Throwable> fn) {
+        //在responseFuture之上注册回调
         this.responseFuture = this.responseFuture.whenComplete((v, t) -> {
             beforeContext.accept(v, t);
             fn.accept(v, t);
@@ -286,14 +310,24 @@ public class AsyncRpcResult implements Result {
     private RpcContext tmpContext;
 
     private RpcContext tmpServerContext;
+    /**
+     * 首先会将当前线程的 RpcContext 记录到 tmpContext 中，
+     * 然后将构造函数中存储的 RpcContext 设置到当前线程中，为后面的回调执行做准备
+     */
     private BiConsumer<Result, Throwable> beforeContext = (appResponse, t) -> {
+        //将当前线程的RpcContext记录到tmpContext中
         tmpContext = RpcContext.getContext();
         tmpServerContext = RpcContext.getServerContext();
+        //将构造函数中存储的RpcContext设置到当前线程中
         RpcContext.restoreContext(storedContext);
         RpcContext.restoreServerContext(storedServerContext);
     };
 
+    /**
+     * 回复线程原有的RpcContest
+     */
     private BiConsumer<Result, Throwable> afterContext = (appResponse, t) -> {
+        //将tmpContext中存储的RpcContext恢复到当前线程绑定的RpcContext
         RpcContext.restoreContext(tmpContext);
         RpcContext.restoreServerContext(tmpServerContext);
     };

@@ -36,6 +36,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.EXPORTER_LISTENE
 import static org.apache.dubbo.common.constants.CommonConstants.INVOKER_LISTENER_KEY;
 
 /**
+ * Protocol接口的装饰器
  * ListenerProtocol
  */
 public class ProtocolListenerWrapper implements Protocol {
@@ -54,6 +55,9 @@ public class ProtocolListenerWrapper implements Protocol {
         return protocol.getDefaultPort();
     }
 
+    /**
+     * 封装一层ListenerExporterWrapper
+     */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         if (UrlUtils.isRegistry(invoker.getUrl())) {
@@ -64,6 +68,9 @@ public class ProtocolListenerWrapper implements Protocol {
                         .getActivateExtension(invoker.getUrl(), EXPORTER_LISTENER_KEY)));
     }
 
+    /**
+     * 封装一层ListenerInvokerWrapper
+     */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
         if (UrlUtils.isRegistry(url)) {

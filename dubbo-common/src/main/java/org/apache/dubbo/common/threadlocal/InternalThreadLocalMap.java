@@ -90,11 +90,12 @@ public final class InternalThreadLocalMap {
      */
     public boolean setIndexedVariable(int index, Object value) {
         Object[] lookup = indexedVariables;
-        if (index < lookup.length) {
+        if (index < lookup.length) {  //将value存储到index指定的位置
             Object oldValue = lookup[index];
             lookup[index] = value;
             return oldValue == UNSET;
         } else {
+            //当index超过indexedVariables数组的长度时，需要对indexedVariables数组进行扩容
             expandIndexedVariableTableAndSet(index, value);
             return true;
         }
