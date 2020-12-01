@@ -98,6 +98,11 @@ public abstract class Wrapper {
     private static AtomicLong WRAPPER_CLASS_COUNTER = new AtomicLong(0);
 
     /**
+     * 根据不同的Java对象，使用Javassist生成相应的Wrapper实现对象
+     *
+     * 首先检测该 Java 类是否实现了 DC 这个标识接口，在前面介绍 Proxy 抽象类的时候，我们提到过这个接口；
+     * 检测 WRAPPER_MAP 集合（Map, Wrapper> 类型）中是否缓存了对应的 Wrapper 对象，
+     *      如果已缓存则直接返回，如果未缓存则调用 makeWrapper() 方法动态生成 Wrapper 实现类，以及相应的实例对象，并写入缓存中。
      * get wrapper.
      *
      * @param c Class instance.
@@ -116,6 +121,12 @@ public abstract class Wrapper {
         return WRAPPER_MAP.computeIfAbsent(c, key -> makeWrapper(key));
     }
 
+    /**
+     * 遍历传入的 Class 对象的所有 public 字段和 public 方法，构建组装 Wrapper 实现类需要的 Java 代码
+     *  第一步，public 字段会构造相应的 getPropertyValue() 方法和 setPropertyValue() 方法。
+     *  第二步，处理 public 方法，这些 public 方法会添加到 invokeMethod 方法中。
+     *  第三步，完成了上述 Wrapper 实现类相关信息的填充之后，makeWrapper() 方法会通过 ClassGenerator 创建 Wrapper 实现类
+     */
     private static Wrapper makeWrapper(Class<?> c) {
         if (c.isPrimitive()) {
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);

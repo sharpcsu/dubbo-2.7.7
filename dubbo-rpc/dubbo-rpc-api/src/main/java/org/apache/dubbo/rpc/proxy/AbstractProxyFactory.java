@@ -34,6 +34,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATT
 import static org.apache.dubbo.rpc.Constants.INTERFACES;
 
 /**
+ * 主要处理需要代理的接口
  * AbstractProxyFactory
  */
 public abstract class AbstractProxyFactory implements ProxyFactory {
@@ -48,18 +49,21 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
 
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
+        //记录要代理的接口
         Set<Class<?>> interfaces = new HashSet<>();
 
+        //获取URL中interfaces参数指定的接口
         String config = invoker.getUrl().getParameter(INTERFACES);
         if (config != null && config.length() > 0) {
+            //按照逗号切分interfaces参数指定的接口
             String[] types = COMMA_SPLIT_PATTERN.split(config);
-            for (String type : types) {
+            for (String type : types) {  //记录这些接口信息
                 // TODO can we load successfully for a different classloader?.
                 interfaces.add(ReflectUtils.forName(type));
             }
         }
 
-        if (generic) {
+        if (generic) {  //针对泛化接口的处理
             if (!GenericService.class.isAssignableFrom(invoker.getInterface())) {
                 interfaces.add(com.alibaba.dubbo.rpc.service.GenericService.class);
             }
@@ -73,9 +77,12 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
             }
         }
 
+        //从URL中获取interface参数指定的接口
         interfaces.add(invoker.getInterface());
+        //添加EchoService、Destroyable两个默认接口
         interfaces.addAll(Arrays.asList(INTERNAL_INTERFACES));
 
+        //调用抽象的getProxy()重载方法
         return getProxy(invoker, interfaces.toArray(new Class<?>[0]));
     }
 

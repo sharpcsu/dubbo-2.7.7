@@ -29,16 +29,28 @@ import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
  */
 public class JavassistProxyFactory extends AbstractProxyFactory {
 
+    /**
+     * 获取目标类的代理对象
+     *     首先通过 getProxy() 方法获取 Proxy 对象，
+     *     然后调用 newInstance() 方法获取目标类的代理对象
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 
+    /**
+     * 首先该方法会通过 Wrapper 创建一个包装类，
+     * 然后创建一个实现了 AbstractProxyInvoker 的匿名内部类，
+     * 其 doInvoker() 方法会直接委托给 Wrapper 对象的 InvokeMethod() 方法
+     */
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        //通过Wrapper创建一个包装类对象
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+        //创建一个实现了AbstractProxyInvoker的匿名内部类，其doInvoke()方法会委托给Wrapper对象的InvokeMethod()方法
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,
