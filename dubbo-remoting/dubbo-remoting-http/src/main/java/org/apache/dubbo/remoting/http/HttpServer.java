@@ -36,6 +36,7 @@ public interface HttpServer extends Resetable, RemotingServer {
      *
      * @return url
      */
+    @Override
     URL getUrl();
 
     /**
@@ -63,6 +64,7 @@ public interface HttpServer extends Resetable, RemotingServer {
      *
      * @return bound
      */
+    @Override
     boolean isBound();
 
     /**

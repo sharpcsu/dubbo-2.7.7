@@ -24,10 +24,13 @@ import org.apache.dubbo.remoting.Constants;
 /**
  * HttpBinder
  */
-@SPI("jetty")
+@SPI("jetty")  //默认实现是JettyHttpBinder
 public interface HttpBinder {
 
     /**
+     * Adaptive 注解修饰，会根据 URL 的 server 参数选择相应的 HttpBinder 扩展实现，
+     * 不同 HttpBinder 实现返回相应的 HttpServer 实现
+     *
      * bind the server.
      *
      * @param url server url.

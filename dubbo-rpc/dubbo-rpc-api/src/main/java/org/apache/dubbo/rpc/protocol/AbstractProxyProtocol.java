@@ -73,9 +73,14 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
         this.proxyFactory = proxyFactory;
     }
 
+    /**
+     * 首先会根据 URL 检查 exporterMap 缓存，如果查询失败，则会调用 ProxyFactory.getProxy() 方法将 Invoker 封装成业务接口的代理类，
+     * 然后通过子类实现的 doExport() 方法启动底层的 ProxyProtocolServer，并初始化 serverMap 集合
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> Exporter<T> export(final Invoker<T> invoker) throws RpcException {
+        //首相查询exporterMap集合
         final String uri = serviceKey(invoker.getUrl());
         Exporter<T> exporter = (Exporter<T>) exporterMap.get(uri);
         if (exporter != null) {
@@ -84,7 +89,9 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
                 return exporter;
             }
         }
+        //通过ProxyFactory创建代理类，将Invoker封装成业务接口的代理类
         final Runnable runnable = doExport(proxyFactory.getProxy(invoker, true), invoker.getInterface(), invoker.getUrl());
+        //doExport()方法返回的Runnable是一个回调，其中会销毁底层的Server，在unexport()方法中调用该Runnable
         exporter = new AbstractExporter<T>(invoker) {
             @Override
             public void unexport() {
@@ -103,6 +110,11 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
         return exporter;
     }
 
+    /**
+     * 首先通过 doRefer() 方法创建业务接口的代理，
+     * 这里会使用到 jsonrpc4j 库中的 JsonProxyFactoryBean 与 Spring 进行集成，
+     * 在其 afterPropertiesSet() 方法中会创建 JsonRpcHttpClient 对象
+     */
     @Override
     protected <T> Invoker<T> protocolBindingRefer(final Class<T> type, final URL url) throws RpcException {
         final Invoker<T> target = proxyFactory.getInvoker(doRefer(type, url), type, url);
@@ -131,6 +143,7 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
                 }
             }
         };
+        //将Invoker添加到invokers集合中
         invokers.add(invoker);
         return invoker;
     }
