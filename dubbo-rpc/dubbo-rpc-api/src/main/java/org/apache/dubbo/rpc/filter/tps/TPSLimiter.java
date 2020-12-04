@@ -30,6 +30,8 @@ import org.apache.dubbo.rpc.Invocation;
 public interface TPSLimiter {
 
     /**
+     * 判断当前请求是否被TPS规则允许
+     *
      * judge if the current invocation is allowed by TPS rule
      *
      * @param url        url

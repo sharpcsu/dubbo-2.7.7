@@ -34,6 +34,9 @@ import static org.apache.dubbo.common.constants.CommonConstants.REMOTE_APPLICATI
 import static org.apache.dubbo.common.constants.CommonConstants.TIME_COUNTDOWN_KEY;
 
 /**
+ * 在当前的 RpcContext 中记录本地调用的一些状态信息（会记录到 LOCAL 对应的 RpcContext 中），
+ * 例如，调用相关的 Invoker、Invocation 以及调用的本地地址、远端地址信息
+ *
  * ConsumerContextFilter set current RpcContext with invoker,invocation, local host, remote host and port
  * for consumer invoker.It does it to make the requires info available to execution thread's RpcContext.
  *
@@ -46,17 +49,18 @@ public class ConsumerContextFilter implements Filter {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         RpcContext context = RpcContext.getContext();
-        context.setInvoker(invoker)
-                .setInvocation(invocation)
-                .setLocalAddress(NetUtils.getLocalHost(), 0)
-                .setRemoteAddress(invoker.getUrl().getHost(), invoker.getUrl().getPort())
-                .setRemoteApplicationName(invoker.getUrl().getParameter(REMOTE_APPLICATION_KEY))
+        context.setInvoker(invoker)  //记录Invoker
+                .setInvocation(invocation)  //记录Invocation
+                .setLocalAddress(NetUtils.getLocalHost(), 0)  //记录本地地址
+                .setRemoteAddress(invoker.getUrl().getHost(), invoker.getUrl().getPort())  //记录远程地址
+                .setRemoteApplicationName(invoker.getUrl().getParameter(REMOTE_APPLICATION_KEY))  //记录远程应用名称
                 .setAttachment(REMOTE_APPLICATION_KEY, invoker.getUrl().getParameter(APPLICATION_KEY));
         if (invocation instanceof RpcInvocation) {
             ((RpcInvocation) invocation).setInvoker(invoker);
         }
 
         // pass default timeout set by end user (ReferenceConfig)
+        //检测是否超时
         Object countDown = context.get(TIME_COUNTDOWN_KEY);
         if (countDown != null) {
             TimeoutCountDown timeoutCountDown = (TimeoutCountDown) countDown;

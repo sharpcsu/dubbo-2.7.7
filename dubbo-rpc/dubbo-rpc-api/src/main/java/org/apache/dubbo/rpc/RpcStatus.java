@@ -32,17 +32,47 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class RpcStatus {
 
+    /**
+     * 记录当前Consumer调用每个服务的状态信息，其中key是URL，value是对应的RpcStatus对象
+     */
     private static final ConcurrentMap<String, RpcStatus> SERVICE_STATISTICS = new ConcurrentHashMap<String, RpcStatus>();
 
+    /**
+     * 记录当前Consumer调用每个服务方法的状态信息，第一层key是url，第二层key是方法名称，第三次是对应的RpcStatus对象
+     */
     private static final ConcurrentMap<String, ConcurrentMap<String, RpcStatus>> METHOD_STATISTICS = new ConcurrentHashMap<String, ConcurrentMap<String, RpcStatus>>();
     private final ConcurrentMap<String, Object> values = new ConcurrentHashMap<String, Object>();
+    /**
+     * 当前并发度
+     */
     private final AtomicInteger active = new AtomicInteger();
+    /**
+     * 调用的总数
+     */
     private final AtomicLong total = new AtomicLong();
+    /**
+     * 失败的调用数
+     */
     private final AtomicInteger failed = new AtomicInteger();
+    /**
+     * 所有调用的总耗时
+     */
     private final AtomicLong totalElapsed = new AtomicLong();
+    /**
+     * 所有失败调用的总耗时
+     */
     private final AtomicLong failedElapsed = new AtomicLong();
+    /**
+     * 所有调用中最长的耗时
+     */
     private final AtomicLong maxElapsed = new AtomicLong();
+    /**
+     * 所有失败调用中最长的耗时
+     */
     private final AtomicLong failedMaxElapsed = new AtomicLong();
+    /**
+     * 所有成功调用中最长的耗时
+     */
     private final AtomicLong succeededMaxElapsed = new AtomicLong();
 
     private RpcStatus() {
@@ -92,25 +122,29 @@ public class RpcStatus {
     }
 
     /**
-     * @param url
+     * 在远程调用开始之前执行，
+     * 其中会从 SERVICE_STATISTICS 集合和 METHOD_STATISTICS 集合中获取服务和服务方法对应的 RpcStatus 对象，
+     * 然后分别将它们的 active 字段加一
      */
     public static boolean beginCount(URL url, String methodName, int max) {
         max = (max <= 0) ? Integer.MAX_VALUE : max;
+        //获取服务对应的RpcStatus对象
         RpcStatus appStatus = getStatus(url);
+        //获取服务方法对应的RpcStatus对象
         RpcStatus methodStatus = getStatus(url, methodName);
-        if (methodStatus.active.get() == Integer.MAX_VALUE) {
+        if (methodStatus.active.get() == Integer.MAX_VALUE) {  //并发度溢出
             return false;
         }
         for (int i; ; ) {
             i = methodStatus.active.get();
-            if (i + 1 > max) {
+            if (i + 1 > max) {  //并发度超过max上限，直接返回false
                 return false;
             }
-            if (methodStatus.active.compareAndSet(i, i + 1)) {
-                break;
+            if (methodStatus.active.compareAndSet(i, i + 1)) {  //CAS操作
+                break;  //更新成功后退出当前循环
             }
         }
-        appStatus.active.incrementAndGet();
+        appStatus.active.incrementAndGet();  //单个服务的并发度+1
         return true;
     }
 
@@ -124,18 +158,21 @@ public class RpcStatus {
         endCount(getStatus(url, methodName), elapsed, succeeded);
     }
 
+    /**
+     * 对服务和服务方法两个维度的 RpcStatus 中的所有字段进行更新，完成统计
+     */
     private static void endCount(RpcStatus status, long elapsed, boolean succeeded) {
-        status.active.decrementAndGet();
-        status.total.incrementAndGet();
-        status.totalElapsed.addAndGet(elapsed);
-        if (status.maxElapsed.get() < elapsed) {
+        status.active.decrementAndGet();  //请求完成，降低并发度
+        status.total.incrementAndGet(); //调用总次数增加
+        status.totalElapsed.addAndGet(elapsed);  //调用总耗时增加
+        if (status.maxElapsed.get() < elapsed) {  //更新最大耗时
             status.maxElapsed.set(elapsed);
         }
-        if (succeeded) {
+        if (succeeded) {  //如果调用成功，则会更新成功调用的最大耗时
             if (status.succeededMaxElapsed.get() < elapsed) {
                 status.succeededMaxElapsed.set(elapsed);
             }
-        } else {
+        } else {  //如果调用失败，则会更新失败调用的最大耗时
             status.failed.incrementAndGet();
             status.failedElapsed.addAndGet(elapsed);
             if (status.failedMaxElapsed.get() < elapsed) {

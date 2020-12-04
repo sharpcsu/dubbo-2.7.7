@@ -24,14 +24,27 @@ import java.util.concurrent.atomic.LongAdder;
  */
 class StatItem {
 
+    /**
+     * 对应的ServiceKey
+     */
     private String name;
 
     private long lastResetTime;
 
+    /**
+     * 重置token值得时间周期，实现在interval时间段内能够通过rate个请求的效果
+     */
     private long interval;
 
+    /**
+     * 初始值为rate值，每通过一个请求token递减1，当减为0时，不再通过任何请求，实现限流的作用
+     * 类似水桶
+     */
     private LongAdder token;
 
+    /**
+     * 一段时间内能通过的TPS上限
+     */
     private int rate;
 
     StatItem(String name, int rate, long interval) {
@@ -44,15 +57,15 @@ class StatItem {
 
     public boolean isAllowable() {
         long now = System.currentTimeMillis();
-        if (now > lastResetTime + interval) {
-            token = buildLongAdder(rate);
-            lastResetTime = now;
+        if (now > lastResetTime + interval) {  //周期性重置token
+            token = buildLongAdder(rate);  //重置token
+            lastResetTime = now;  //记录最近一次重置token的时间戳
         }
 
-        if (token.sum() < 0) {
+        if (token.sum() < 0) {  //请求限流
             return false;
         }
-        token.decrement();
+        token.decrement();  //请求正常通过
         return true;
     }
 

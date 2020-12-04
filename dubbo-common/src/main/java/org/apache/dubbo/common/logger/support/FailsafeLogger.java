@@ -20,6 +20,10 @@ import org.apache.dubbo.common.Version;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.utils.NetUtils;
 
+/**
+ * Logger对象的装饰器
+ * 在每个 Logger 日志写入操作之外，都添加了 try/catch 异常处理
+ */
 public class FailsafeLogger implements Logger {
 
     private Logger logger;

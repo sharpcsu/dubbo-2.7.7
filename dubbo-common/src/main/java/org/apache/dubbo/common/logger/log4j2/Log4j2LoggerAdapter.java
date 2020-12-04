@@ -76,6 +76,11 @@ public class Log4j2LoggerAdapter implements LoggerAdapter {
         return Level.OFF;
     }
 
+    /**
+     * 创建Log4j2Logger适配器
+     * @param key the returned logger will be named after clazz
+     * @return
+     */
     @Override
     public Logger getLogger(Class<?> key) {
         return new Log4j2Logger(LogManager.getLogger(key));

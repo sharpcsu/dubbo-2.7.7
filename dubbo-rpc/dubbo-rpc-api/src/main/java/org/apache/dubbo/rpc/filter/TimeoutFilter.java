@@ -34,6 +34,7 @@ import java.util.Arrays;
 import static org.apache.dubbo.common.constants.CommonConstants.TIME_COUNTDOWN_KEY;
 
 /**
+ * 超时时间
  * Log any invocation timeout, but don't stop server from running
  */
 @Activate(group = CommonConstants.PROVIDER)
@@ -51,8 +52,8 @@ public class TimeoutFilter implements Filter, Filter.Listener {
         Object obj = RpcContext.getContext().get(TIME_COUNTDOWN_KEY);
         if (obj != null) {
             TimeoutCountDown countDown = (TimeoutCountDown) obj;
-            if (countDown.isExpired()) {
-                ((AppResponse) appResponse).clear(); // clear response in case of timeout.
+            if (countDown.isExpired()) {  //检查结果是否超时
+                ((AppResponse) appResponse).clear(); //清理结果信息 clear response in case of timeout.
                 if (logger.isWarnEnabled()) {
                     logger.warn("invoke timed out. method: " + invocation.getMethodName() + " arguments: " +
                             Arrays.toString(invocation.getArguments()) + " , url is " + invoker.getUrl() +

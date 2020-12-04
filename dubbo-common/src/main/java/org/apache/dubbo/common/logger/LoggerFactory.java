@@ -79,6 +79,9 @@ public class LoggerFactory {
     private LoggerFactory() {
     }
 
+    /**
+     * 通过SPI机制初始化LOGGER_ADAPTER
+     */
     public static void setLoggerAdapter(String loggerAdapter) {
         if (loggerAdapter != null && loggerAdapter.length() > 0) {
             setLoggerAdapter(ExtensionLoader.getExtensionLoader(LoggerAdapter.class).getExtension(loggerAdapter));
@@ -102,6 +105,7 @@ public class LoggerFactory {
     }
 
     /**
+     * 通过LOGGER_ADAPTER获取Logger实现对象
      * Get logger provider
      *
      * @param key the returned logger will be named after clazz

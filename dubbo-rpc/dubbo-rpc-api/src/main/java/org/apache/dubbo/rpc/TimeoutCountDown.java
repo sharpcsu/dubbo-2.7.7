@@ -24,8 +24,19 @@ public final class TimeoutCountDown implements Comparable<TimeoutCountDown> {
     return new TimeoutCountDown(timeout, unit);
   }
 
+  /**
+   * 超时时间，单位毫秒
+   */
   private final long timeoutInMillis;
+
+  /**
+   * 超时的时间戳，单位纳秒
+   */
   private final long deadlineInNanos;
+
+  /**
+   * 标识当前TimeoutCountDown关联的调用是否已超时
+   */
   private volatile boolean expired;
 
   private TimeoutCountDown(long timeout, TimeUnit unit) {
