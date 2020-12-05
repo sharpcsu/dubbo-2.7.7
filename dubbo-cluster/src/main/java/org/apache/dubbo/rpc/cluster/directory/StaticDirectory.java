@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * 维护的 Invoker 集合则是静态的，在 StaticDirectory 对象创建完成之后，不会再发生变化
  * StaticDirectory
  */
 public class StaticDirectory<T> extends AbstractDirectory<T> {
@@ -91,16 +92,22 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
         invokers.clear();
     }
 
+    /**
+     * 在创建 StaticDirectory 对象的时候，如果没有传入 RouterChain 对象，则会根据 URL 构造一个包含内置 Router 的 RouterChain 对象
+     */
     public void buildRouterChain() {
+        //创建内置Router集合
         RouterChain<T> routerChain = RouterChain.buildChain(getUrl());
+        //将invokers与RouterChain关联
         routerChain.setInvokers(invokers);
+        //设置routerChain字段
         this.setRouterChain(routerChain);
     }
 
     @Override
     protected List<Invoker<T>> doList(Invocation invocation) throws RpcException {
         List<Invoker<T>> finalInvokers = invokers;
-        if (routerChain != null) {
+        if (routerChain != null) {  //通过RouterChain过滤出符合条件的Invoker集合
             try {
                 finalInvokers = routerChain.route(getConsumerUrl(), invocation);
             } catch (Throwable t) {

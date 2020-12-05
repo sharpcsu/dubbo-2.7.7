@@ -34,6 +34,8 @@ import static org.apache.dubbo.common.constants.CommonConstants.MONITOR_KEY;
 import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
 
 /**
+ * 维护 Consumer 端的 URL 信息，
+ * 维护了一个 RouterChain 对象，用于记录当前使用的 Router 对象集合
  * Abstract implementation of Directory: Invoker list returned from this Directory's list method have been filtered by Routers
  *
  */
@@ -93,6 +95,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         routerChain.addRouters(routers);
     }
 
+    @Override
     public URL getConsumerUrl() {
         return consumerUrl;
     }
