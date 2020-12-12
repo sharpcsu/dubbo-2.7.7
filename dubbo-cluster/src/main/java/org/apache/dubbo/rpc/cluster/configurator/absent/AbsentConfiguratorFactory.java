@@ -21,6 +21,7 @@ import org.apache.dubbo.rpc.cluster.Configurator;
 import org.apache.dubbo.rpc.cluster.ConfiguratorFactory;
 
 /**
+ * 对应扩展名是absent
  * AbsentConfiguratorFactory
  *
  */

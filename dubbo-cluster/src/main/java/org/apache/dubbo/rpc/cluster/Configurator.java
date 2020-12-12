@@ -32,12 +32,16 @@ import static org.apache.dubbo.common.constants.CommonConstants.ANYHOST_KEY;
 import static org.apache.dubbo.common.constants.RegistryConstants.EMPTY_PROTOCOL;
 
 /**
+ * 抽象了一条配置信息，
+ * 提供了将配置 URL 解析成 Configurator 对象的工具方法
+ *
  * Configurator. (SPI, Prototype, ThreadSafe)
  *
  */
 public interface Configurator extends Comparable<Configurator> {
 
     /**
+     * 获取该 Configurator 对象对应的配置 URL，例如前文介绍的 override 协议 URL
      * Get the configurator url.
      *
      * @return configurator url.
@@ -45,6 +49,7 @@ public interface Configurator extends Comparable<Configurator> {
     URL getUrl();
 
     /**
+     * configure()方法接收的参数是原始 URL，返回经过 Configurator 修改后的 URL
      * Configure the provider url.
      *
      * @param url - old provider url.
@@ -54,6 +59,7 @@ public interface Configurator extends Comparable<Configurator> {
 
 
     /**
+     * toConfigurators()工具方法可以将多个配置 URL 对象解析成相应的 configurator 对象
      * Convert override urls to map for use when re-refer. Send all rules every time, the urls will be reassembled and
      * calculated
      *
@@ -74,11 +80,13 @@ public interface Configurator extends Comparable<Configurator> {
             return Optional.empty();
         }
 
+        //创建ConfiguratorFactory适配器
         ConfiguratorFactory configuratorFactory = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .getAdaptiveExtension();
 
-        List<Configurator> configurators = new ArrayList<>(urls.size());
+        List<Configurator> configurators = new ArrayList<>(urls.size());  //记录解析结果
         for (URL url : urls) {
+            //遇到 empty 协议，直接清空 configurators 集合，结束解析，返回空集合
             if (EMPTY_PROTOCOL.equals(url.getProtocol())) {
                 configurators.clear();
                 break;
@@ -86,17 +94,19 @@ public interface Configurator extends Comparable<Configurator> {
             Map<String, String> override = new HashMap<>(url.getParameters());
             //The anyhost parameter of override may be added automatically, it can't change the judgement of changing url
             override.remove(ANYHOST_KEY);
-            if (override.size() == 0) {
+            if (override.size() == 0) {  //如果该配置 URL 没有携带任何参数，则跳过该 URL
                 configurators.clear();
                 continue;
             }
+            //通过 ConfiguratorFactory 适配器选择合适 ConfiguratorFactory 扩展，并创建 Configurator 对象
             configurators.add(configuratorFactory.getConfigurator(url));
         }
-        Collections.sort(configurators);
+        Collections.sort(configurators);  //排序
         return Optional.of(configurators);
     }
 
     /**
+     * 排序首先按照 ip 进行排序，所有 ip 的优先级都高于 0.0.0.0，当 ip 相同时，会按照 priority 参数值进行排序
      * Sort by host, then by priority
      * 1. the url with a specific host ip should have higher priority than 0.0.0.0
      * 2. if two url has the same host, compare by priority value；
