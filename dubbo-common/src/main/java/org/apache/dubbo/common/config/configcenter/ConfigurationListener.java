@@ -19,11 +19,13 @@ package org.apache.dubbo.common.config.configcenter;
 import java.util.EventListener;
 
 /**
+ * 监听配置的变化，包括TagRouterRule配置的变更
  * Config listener, will get notified when the config it listens on changes.
  */
 public interface ConfigurationListener extends EventListener {
 
     /**
+     * 动态更新 TagRouterRule 配置的时候，触发该方法
      * Listener call back method. Listener gets notified by this method once there's any change happens on the config
      * the listener listens on.
      *

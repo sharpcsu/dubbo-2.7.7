@@ -56,20 +56,32 @@ public class ScriptRouter extends AbstractRouter {
 
     private static final Map<String, ScriptEngine> ENGINES = new ConcurrentHashMap<>();
 
+    /**
+     * 当前ScriptRouter使用的ScriptEngine对象
+     */
     private final ScriptEngine engine;
 
+    /**
+     * 当前ScriptRouter使用的具体脚本内容
+     */
     private final String rule;
 
+    /**
+     * 根据rule具体脚本内容编译得到
+     */
     private CompiledScript function;
 
     public ScriptRouter(URL url) {
         this.url = url;
         this.priority = url.getParameter(PRIORITY_KEY, SCRIPT_ROUTER_DEFAULT_PRIORITY);
 
+        //根据URL中的type参数值，从ENGINES集合中获取对应的ScriptEngine对象
         engine = getEngine(url);
+        //获取URL中的rule参数值，即具体的脚本
         rule = getRule(url);
         try {
             Compilable compilable = (Compilable) engine;
+            //编译rule字段中的脚本，得到function字段
             function = compilable.compile(rule);
         } catch (ScriptException e) {
             logger.error("route error, rule has been ignored. rule: " + rule +
@@ -105,13 +117,19 @@ public class ScriptRouter extends AbstractRouter {
         });
     }
 
+    /**
+     * 首先会创建调用 function 函数所需的入参，也就是 Bindings 对象，
+     * 然后调用 function 函数得到过滤后的 Invoker 集合，最后通过 getRoutedInvokers() 方法整理 Invoker 集合得到最终的返回值。
+     */
     @Override
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         try {
+            //创建Bindings对象作为function函数的入参
             Bindings bindings = createBindings(invokers, invocation);
             if (function == null) {
                 return invokers;
             }
+            //调用function函数，并在getRoutedInvokers()方法中整理得到的Invoker集合
             return getRoutedInvokers(function.eval(bindings));
         } catch (ScriptException e) {
             logger.error("route error, rule has been ignored. rule: " + rule + ", method:" +
@@ -140,6 +158,7 @@ public class ScriptRouter extends AbstractRouter {
     private <T> Bindings createBindings(List<Invoker<T>> invokers, Invocation invocation) {
         Bindings bindings = engine.createBindings();
         // create a new List of invokers
+        // 与前面的javascript的示例脚本结合，我们可以看到这里在Bindings中为脚本中的route()函数提供了invokers、Invocation、context三个参数
         bindings.put("invokers", new ArrayList<>(invokers));
         bindings.put("invocation", invocation);
         bindings.put("context", RpcContext.getContext());

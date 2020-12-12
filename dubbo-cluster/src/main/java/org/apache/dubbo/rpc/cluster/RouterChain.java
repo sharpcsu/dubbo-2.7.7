@@ -32,12 +32,21 @@ import java.util.stream.Collectors;
  */
 public class RouterChain<T> {
 
+    /**
+     * 当前RouterChain对象要过滤的Invoker集合。
+     */
     // full list of addresses from registry, classified by method name.
     private List<Invoker<T>> invokers = Collections.emptyList();
 
+    /**
+     * 当前RouterChain中真正要使用的Router集合，包括builtinRouters集合和addRouters()方法添加的Router对象
+     */
     // containing all routers, reconstruct every time 'route://' urls change.
     private volatile List<Router> routers = Collections.emptyList();
 
+    /**
+     * 当前RouterChain激活的内置Router集合
+     */
     // Fixed router instances: ConfigConditionRouter, TagRouter, e.g., the rule for each instance may change but the
     // instance will never delete or recreate.
     private List<Router> builtinRouters = Collections.emptyList();
@@ -47,13 +56,16 @@ public class RouterChain<T> {
     }
 
     private RouterChain(URL url) {
+        //通过ExtensionLoader加载激活的RouterFactory
         List<RouterFactory> extensionFactories = ExtensionLoader.getExtensionLoader(RouterFactory.class)
                 .getActivateExtension(url, "router");
 
+        //遍历所有RouterFactory，调用其getRouter()方法创建相应的Router对象
         List<Router> routers = extensionFactories.stream()
                 .map(factory -> factory.getRouter(url))
                 .collect(Collectors.toList());
 
+        //初始化builtInRouters字段以及routers字段
         initWithRouters(routers);
     }
 
@@ -64,10 +76,11 @@ public class RouterChain<T> {
     public void initWithRouters(List<Router> builtinRouters) {
         this.builtinRouters = builtinRouters;
         this.routers = new ArrayList<>(builtinRouters);
-        this.sort();
+        this.sort();  //对routers集合进行排除
     }
 
     /**
+     * 添加新的Router实例到routers字段中
      * If we use route:// protocol in version before 2.7.0, each URL will generate a Router instance, so we should
      * keep the routers up to date, that is, each time router URLs changes, we should update the routers list, only
      * keep the builtinRouters which are available all the time and the latest notified routers which are generated
@@ -77,9 +90,9 @@ public class RouterChain<T> {
      */
     public void addRouters(List<Router> routers) {
         List<Router> newRouters = new ArrayList<>();
-        newRouters.addAll(builtinRouters);
-        newRouters.addAll(routers);
-        CollectionUtils.sort(newRouters);
+        newRouters.addAll(builtinRouters);  //添加builtinRouters集合
+        newRouters.addAll(routers);  //添加传入的Router集合
+        CollectionUtils.sort(newRouters);  //重新排序
         this.routers = newRouters;
     }
 
@@ -88,14 +101,11 @@ public class RouterChain<T> {
     }
 
     /**
-     *
-     * @param url
-     * @param invocation
-     * @return
+     * 遍历routers字段，逐个调用Router对象的route()方法，对invokers集合进行过滤
      */
     public List<Invoker<T>> route(URL url, Invocation invocation) {
         List<Invoker<T>> finalInvokers = invokers;
-        for (Router router : routers) {
+        for (Router router : routers) {  //遍历全部的Router对象
             finalInvokers = router.route(finalInvokers, url, invocation);
         }
         return finalInvokers;

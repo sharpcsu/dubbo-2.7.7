@@ -25,6 +25,7 @@ import java.util.List;
 
 /**
  * 抽象的是路由器，请求经过Router的时候，会按照用户指定的规则匹配出符合条件的Provider
+ * Router 的主要功能就是根据用户配置的路由规则以及请求携带的信息，过滤出符合条件的 Invoker 集合，供后续负载均衡逻辑使用
  *
  * Router. (SPI, Prototype, ThreadSafe)
  * <p>

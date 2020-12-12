@@ -44,6 +44,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.TAG_KEY;
 import static org.apache.dubbo.rpc.Constants.FORCE_USE_TAG;
 
 /**
+ * 通过 TagRouter，可以将某一个或多个 Provider 划分到同一分组，约束流量只在指定分组中流转，轻松达到流量隔离的目的，支持灰度发布等场景。
  * TagRouter, "application.tag-router"
  */
 public class TagRouter extends AbstractRouter implements ConfigurationListener {
@@ -68,9 +69,11 @@ public class TagRouter extends AbstractRouter implements ConfigurationListener {
         }
 
         try {
+            //DELETED事件会直接清空tagRouterRule
             if (event.getChangeType().equals(ConfigChangeType.DELETED)) {
                 this.tagRouterRule = null;
             } else {
+                //其它事件会解析最新的路由规则，并记录到tagRouterRule字段中
                 this.tagRouterRule = TagRuleParser.parse(event.getContent());
             }
         } catch (Exception e) {
@@ -84,6 +87,23 @@ public class TagRouter extends AbstractRouter implements ConfigurationListener {
         return url;
     }
 
+    /**
+     * 过滤符合条件的Invoker对象
+     *
+     * 1. 如果 invokers 为空，直接返回空集合。
+     * 2. 检查关联的 tagRouterRule 对象是否可用，如果不可用，则会直接调用 filterUsingStaticTag() 方法进行过滤，并返回过滤结果。
+     *      在 filterUsingStaticTag() 方法中，会比较请求携带的 tag 值与 Provider URL 中的 tag 参数值。
+     * 3. 获取此次调用的 tag 信息，这里会尝试从 Invocation 以及 URL 的参数中获取。
+     * 4. 如果此次请求指定了 tag 信息，则首先会获取 tag 关联的 address 集合。
+     * 5. 如果 address 集合不为空，则根据该 address 集合中的地址，匹配出符合条件的 Invoker 集合。
+     *      如果存在符合条件的 Invoker，则直接将过滤得到的 Invoker 集合返回；如果不存在，就会根据 force 配置决定是否返回空 Invoker 集合。
+     * 6. 如果 address 集合为空，则会将请求携带的 tag 值与 Provider URL 中的 tag 参数值进行比较，匹配出符合条件的 Invoker 集合。
+     *      如果存在符合条件的 Invoker，则直接将过滤得到的 Invoker 集合返回；如果不存在，就会根据 force 配置决定是否返回空 Invoker 集合。
+     * 7. 如果 force 配置为 false，且符合条件的 Invoker 集合为空，则返回所有不包含任何 tag 的 Provider 列表。
+     * 8. 如果此次请求未携带 tag 信息，则会先获取 TagRouterRule 规则中全部 tag 关联的 address 集合。
+     *      如果 address 集合不为空，则过滤出不在 address 集合中的 Invoker 并添加到结果集合中，
+     *      最后，将 Provider URL 中的 tag 值与 TagRouterRule 中的 tag 名称进行比较，得到最终的 Invoker 集合。
+     */
     @Override
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         if (CollectionUtils.isEmpty(invokers)) {
@@ -96,32 +116,39 @@ public class TagRouter extends AbstractRouter implements ConfigurationListener {
             return filterUsingStaticTag(invokers, url, invocation);
         }
 
+        //检查关联的tagRouterRule对象是否可用，如果不可用，则会直接调用filterUsingStaticTag()方法进行过滤
         List<Invoker<T>> result = invokers;
+        //获取此次调用的tag信息，尝试从Invocation以及URL中获取
         String tag = StringUtils.isEmpty(invocation.getAttachment(TAG_KEY)) ? url.getParameter(TAG_KEY) :
                 invocation.getAttachment(TAG_KEY);
 
         // if we are requesting for a Provider with a specific tag
-        if (StringUtils.isNotEmpty(tag)) {
+        if (StringUtils.isNotEmpty(tag)) {  //此次请求一个特殊的tag
+            //获取tag关联的address集合
             List<String> addresses = tagRouterRuleCopy.getTagnameToAddresses().get(tag);
             // filter by dynamic tag group first
             if (CollectionUtils.isNotEmpty(addresses)) {
+                //根据上面的address集合匹配符合条件的Invoker
                 result = filterInvoker(invokers, invoker -> addressMatches(invoker.getUrl(), addresses));
                 // if result is not null OR it's null but force=true, return result directly
+                //如果存在符合条件的Invoker，则直接将过滤得到的Invoker集合返回
+                //如果不存在符合条件的Invoker，根据force配置决定是否返回空Invoker集合
                 if (CollectionUtils.isNotEmpty(result) || tagRouterRuleCopy.isForce()) {
                     return result;
                 }
             } else {
                 // dynamic tag group doesn't have any item about the requested app OR it's null after filtered by
                 // dynamic tag group but force=false. check static tag
+                //如果address集合为空，则会将请求携带的 tag 与 Provider URL 中的 tag 参数进行比较，匹配出符合条件的 Invoker 集合
                 result = filterInvoker(invokers, invoker -> tag.equals(invoker.getUrl().getParameter(TAG_KEY)));
             }
             // If there's no tagged providers that can match the current tagged request. force.tag is set by default
             // to false, which means it will invoke any providers without a tag unless it's explicitly disallowed.
             if (CollectionUtils.isNotEmpty(result) || isForceUseTag(invocation)) {
-                return result;
+                return result;  //存在符合条件的 Invoker 或是 force 配置为true
             }
             // FAILOVER: return all Providers without any tags.
-            else {
+            else {  //如果 force 配置为 false，且符合条件的 Invoker 集合为空，则返回所有不包含 tag 的 Provider列表
                 List<Invoker<T>> tmp = filterInvoker(invokers, invoker -> addressNotMatches(invoker.getUrl(),
                         tagRouterRuleCopy.getAddresses()));
                 return filterInvoker(tmp, invoker -> StringUtils.isEmpty(invoker.getUrl().getParameter(TAG_KEY)));
@@ -129,8 +156,10 @@ public class TagRouter extends AbstractRouter implements ConfigurationListener {
         } else {
             // List<String> addresses = tagRouterRule.filter(providerApp);
             // return all addresses in dynamic tag group.
+            //如果此次请求未携带 tag 信息，则会先获取 TagRouterRule 规则中全部 tag 关联的 address 集合
             List<String> addresses = tagRouterRuleCopy.getAddresses();
             if (CollectionUtils.isNotEmpty(addresses)) {
+                //如果 address 集合不为空，则过滤出不在 address 集合中的 Invoker 并添加到结果集合中
                 result = filterInvoker(invokers, invoker -> addressNotMatches(invoker.getUrl(), addresses));
                 // 1. all addresses are in dynamic tag group, return empty list.
                 if (CollectionUtils.isEmpty(result)) {
@@ -139,6 +168,8 @@ public class TagRouter extends AbstractRouter implements ConfigurationListener {
                 // 2. if there are some addresses that are not in any dynamic tag group, continue to filter using the
                 // static tag group.
             }
+
+            //如果不存在符合条件的 Invoker 或是 address 集合为空，则会将请求携带的 tag 与 Provider URL 中的 tag 参数值进行比较，得到最终的 Invoker 集合
             return filterInvoker(result, invoker -> {
                 String localTag = invoker.getUrl().getParameter(TAG_KEY);
                 return StringUtils.isEmpty(localTag) || !tagRouterRuleCopy.getTagNames().contains(localTag);

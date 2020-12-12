@@ -22,6 +22,7 @@ import org.apache.dubbo.rpc.cluster.CacheableRouterFactory;
 import org.apache.dubbo.rpc.cluster.Router;
 
 /**
+ * 通过继承CacheableRouterFactory，间接实现RouterFactory接口
  * Tag router factory
  */
 @Activate(order = 100)

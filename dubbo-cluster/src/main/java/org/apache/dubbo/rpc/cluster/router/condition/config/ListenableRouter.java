@@ -79,11 +79,11 @@ public abstract class ListenableRouter extends AbstractRouter implements Configu
     @Override
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         if (CollectionUtils.isEmpty(invokers) || conditionRouters.size() == 0) {
-            return invokers;
+            return invokers;  //检测边界条件，直接返回invokers集合
         }
 
         // We will check enabled status inside each router.
-        for (Router router : conditionRouters) {
+        for (Router router : conditionRouters) {  //路由规则进行过滤
             invokers = router.route(invokers, url, invocation);
         }
 
