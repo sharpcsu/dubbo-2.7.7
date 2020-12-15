@@ -40,6 +40,7 @@ import java.util.List;
 public interface LoadBalance {
 
     /**
+     * 根据传入的 URL 和 Invocation，以及自身的负载均衡算法，从 Invoker 集合中选一个 Invoker 返回
      * select one invoker in list.
      *
      * @param invokers   invokers.
@@ -47,7 +48,7 @@ public interface LoadBalance {
      * @param invocation invocation.
      * @return selected invoker.
      */
-    @Adaptive("loadbalance")
+    @Adaptive("loadbalance")  //动态生成的适配器会按照 URL 中的 loadbalance 参数值选择扩展实现类
     <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException;
 
 }

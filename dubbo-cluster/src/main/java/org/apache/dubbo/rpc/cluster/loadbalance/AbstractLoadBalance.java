@@ -53,11 +53,12 @@ public abstract class AbstractLoadBalance implements LoadBalance {
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         if (CollectionUtils.isEmpty(invokers)) {
-            return null;
+            return null;  //Invoker 集合为空，直接返回null
         }
-        if (invokers.size() == 1) {
+        if (invokers.size() == 1) {  //Invoker 集合值包含一个 Invoker，则直接返回该 Invoker 对象
             return invokers.get(0);
         }
+        //Invoker 集合包含多个 Invoker 对象时，交给 doSelect()方法处理，抽象方法，具体由子类实现
         return doSelect(invokers, url, invocation);
     }
 
@@ -65,6 +66,7 @@ public abstract class AbstractLoadBalance implements LoadBalance {
 
 
     /**
+     * 计算 Provider 权重
      * Get the weight of the invoker's invocation which takes warmup time into account
      * if the uptime is within the warmup time, the weight will be reduce proportionally
      *
@@ -77,17 +79,22 @@ public abstract class AbstractLoadBalance implements LoadBalance {
         URL url = invoker.getUrl();
         // Multiple registry scenario, load balance among multiple registries.
         if (REGISTRY_SERVICE_REFERENCE_PATH.equals(url.getServiceInterface())) {
+            //如果是 RegistryService 接口，直接返回权重
             weight = url.getParameter(REGISTRY_KEY + "." + WEIGHT_KEY, DEFAULT_WEIGHT);
         } else {
             weight = url.getMethodParameter(invocation.getMethodName(), WEIGHT_KEY, DEFAULT_WEIGHT);
             if (weight > 0) {
+                //获取服务提供者的启动时间戳
                 long timestamp = invoker.getUrl().getParameter(TIMESTAMP_KEY, 0L);
                 if (timestamp > 0L) {
+                    //计算 Provider 运行时长
                     long uptime = System.currentTimeMillis() - timestamp;
                     if (uptime < 0) {
                         return 1;
                     }
+                    //计算 Provider 预热市场
                     int warmup = invoker.getUrl().getParameter(WARMUP_KEY, DEFAULT_WARMUP);
+                    //如果 Provider 运行时间小于预热时间，则 Provider 节点可能还在预热阶段，需要重新计算服务权重（降低其权重）
                     if (uptime > 0 && uptime < warmup) {
                         weight = calculateWarmupWeight((int)uptime, warmup, weight);
                     }
