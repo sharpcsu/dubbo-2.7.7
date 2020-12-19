@@ -27,10 +27,15 @@ import java.util.concurrent.ConcurrentMap;
 
 public class MergerFactory {
 
+    /**
+     * 缓存服务接口返回值类型与Merger实例之间的映射关系
+     */
     private static final ConcurrentMap<Class<?>, Merger<?>> MERGER_CACHE =
             new ConcurrentHashMap<Class<?>, Merger<?>>();
 
     /**
+     * 根据传入的returnType类型，从MERGER_CACHE缓存中查找相应的Merger实现
+     *
      * Find the merger according to the returnType class, the merger will
      * merge an array of returnType into one
      *
@@ -39,22 +44,26 @@ public class MergerFactory {
      * @throws IllegalArgumentException if returnType is null
      */
     public static <T> Merger<T> getMerger(Class<T> returnType) {
-        if (returnType == null) {
+        if (returnType == null) {  //returnType为空，直接抛出异常
             throw new IllegalArgumentException("returnType is null");
         }
 
         Merger result;
-        if (returnType.isArray()) {
+        if (returnType.isArray()) {  //returnType为数组类型
+            //获取数组中元素的类型
             Class type = returnType.getComponentType();
+            //获取元素类型对应的Merger实现
             result = MERGER_CACHE.get(type);
             if (result == null) {
                 loadMergers();
                 result = MERGER_CACHE.get(type);
             }
+            //如果Dubbo没有提供元素类型对应的Merger实现，则返回ArrayMerger
             if (result == null && !type.isPrimitive()) {
                 result = ArrayMerger.INSTANCE;
             }
         } else {
+            //如果returnType不是数组类型，则直接从MERGER_CACHE缓存查找对应的Merger实例
             result = MERGER_CACHE.get(returnType);
             if (result == null) {
                 loadMergers();
@@ -64,11 +73,16 @@ public class MergerFactory {
         return result;
     }
 
+    /**
+     * 通过Dubbo SPI方式加载Merger接口全部扩展实现的名称，填充到MERGER_CACHE集合中
+     */
     static void loadMergers() {
+        //获取Merger接口的所有扩展名称
         Set<String> names = ExtensionLoader.getExtensionLoader(Merger.class)
                 .getSupportedExtensions();
-        for (String name : names) {
+        for (String name : names) {  //遍历所有Merger扩展实现
             Merger m = ExtensionLoader.getExtensionLoader(Merger.class).getExtension(name);
+            //将Merger实例与对应returnType的映射关系记录到MERGER_CACHE集合中
             MERGER_CACHE.putIfAbsent(ReflectUtils.getGenericClass(m.getClass()), m);
         }
     }

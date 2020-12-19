@@ -30,8 +30,10 @@ public class MapMerger implements Merger<Map<?, ?>> {
     @Override
     public Map<?, ?> merge(Map<?, ?>... items) {
         if (ArrayUtils.isEmpty(items)) {
+            //空结果集时，返回空Map
             return Collections.emptyMap();
         }
+        //将items中所有Map集合中的KV，添加到result Map集合中
         Map<Object, Object> result = new HashMap<Object, Object>();
         Stream.of(items).filter(Objects::nonNull).forEach(result::putAll);
         return result;
