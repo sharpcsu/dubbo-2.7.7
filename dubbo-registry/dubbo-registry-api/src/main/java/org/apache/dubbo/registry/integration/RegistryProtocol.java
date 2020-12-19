@@ -190,43 +190,62 @@ public class RegistryProtocol implements Protocol {
                 registered));
     }
 
+    /**
+     * 远程发布流程大致可分为下面 5 个步骤。
+     * 	1. 准备 URL，比如 ProviderURL、RegistryURL 和 OverrideSubscribeUrl。
+     * 	2. 发布 Dubbo 服务。在 doLocalExport() 方法中调用 DubboProtocol.export() 方法启动 Provider 端底层 Server。
+     * 	3. 注册 Dubbo 服务。在 register() 方法中，调用 ZookeeperRegistry.register() 方法向 Zookeeper 注册服务。
+     * 	4. 订阅 Provider 端的 Override 配置。调用 ZookeeperRegistry.subscribe() 方法订阅注册中心 configurators 节点下的配置变更。
+     * 	5. 触发 RegistryProtocolListener 监听器。
+     */
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
+        //将"registry://"协议转换成"zookeeper://"协议
         URL registryUrl = getRegistryUrl(originInvoker);
         // url to export locally
+        //获取export参数，其中存储了一个"dubbo://"协议的ProviderURL
         URL providerUrl = getProviderUrl(originInvoker);
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call
         //  the same service. Because the subscribed is cached key with the name of the service, it causes the
         //  subscription information to cover.
+        //获取要监听的配置目录，这里会在ProviderURL的基础上添加category=configurators参数，并封装成对OverrideListener记录到overrideListeners集合中
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(providerUrl);
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
 
+        //初始化时会检测一次Override配置，重写ProviderURL
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
         //export invoker
+        //导出服务，底层会通过执行DubboProtocol.export()方法，启动对应的Server
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
+        //根据RegistryURL获取对应的注册中心Registry对象
         final Registry registry = getRegistry(originInvoker);
+        //获取将要发布到注册中心上的Provider URL，会删除一些多余的参数信息
         final URL registeredProviderUrl = getUrlToRegistry(providerUrl, registryUrl);
 
         // decide if we need to delay publish
+        //根据register参数值决定是否注册服务
         boolean register = providerUrl.getParameter(REGISTER_KEY, true);
-        if (register) {
+        if (register) {  //调用Registry.register()方法将registeredProviderUrl发布到注册中心
             register(registryUrl, registeredProviderUrl);
         }
 
         // register stated url on provider model
+        //将Provider相关信息记录到ProviderModel中
         registerStatedUrl(registryUrl, registeredProviderUrl, register);
 
         // Deprecated! Subscribe to override rules in 2.6.x or before.
+        //向注册中心进行订阅override数据，主要是监听该服务的configurators节点
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
 
         exporter.setRegisterUrl(registeredProviderUrl);
         exporter.setSubscribeUrl(overrideSubscribeUrl);
 
+        //触发RegistryProtocolListener监听器
         notifyExport(exporter);
         //Ensure that a new exporter instance is returned every time export
         return new DestroyableExporter<>(exporter);

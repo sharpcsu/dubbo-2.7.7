@@ -25,6 +25,9 @@ import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.core.Ordered;
 
 /**
+ * Spring Context监听器
+ * Spring与Dubbo服务集成
+ *
  * The {@link ApplicationListener} for {@link DubboBootstrap}'s lifecycle when the {@link ContextRefreshedEvent}
  * and {@link ContextClosedEvent} raised
  *
@@ -43,11 +46,13 @@ public class DubboBootstrapApplicationListener extends OneTimeExecutionApplicati
     private final DubboBootstrap dubboBootstrap;
 
     public DubboBootstrapApplicationListener() {
+        //初始化DubboBootstrap对象
         this.dubboBootstrap = DubboBootstrap.getInstance();
     }
 
     @Override
     public void onApplicationContextEvent(ApplicationContextEvent event) {
+        //监听ContextRefreshedEvent事件和ContextClosedEvent事件
         if (event instanceof ContextRefreshedEvent) {
             onContextRefreshedEvent((ContextRefreshedEvent) event);
         } else if (event instanceof ContextClosedEvent) {
@@ -56,7 +61,7 @@ public class DubboBootstrapApplicationListener extends OneTimeExecutionApplicati
     }
 
     private void onContextRefreshedEvent(ContextRefreshedEvent event) {
-        dubboBootstrap.start();
+        dubboBootstrap.start();  //启动DubboBootstrap
     }
 
     private void onContextClosedEvent(ContextClosedEvent event) {

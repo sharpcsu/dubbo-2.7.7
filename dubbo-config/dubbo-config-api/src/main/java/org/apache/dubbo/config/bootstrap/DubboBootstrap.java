@@ -736,28 +736,38 @@ public class DubboBootstrap extends GenericEventListener {
     }
 
     /**
+     * 服务发布入口
+     * Provider节点的启动入口
+     * 执行一些初始化操作、状态控制字段的更新
+     *
      * Start the bootstrap
      */
     public DubboBootstrap start() {
-        if (started.compareAndSet(false, true)) {
-            ready.set(false);
+        if (started.compareAndSet(false, true)) {  //CAS操作，保证启动一次
+            ready.set(false);  //判断当前节点是否已经启动完毕，在后面的Dubbo QoS中会使用到该字段
+            //初始化一些基础组件，如配置中心相关组件、事件监听、元数据相关组件
             initialize();
             if (logger.isInfoEnabled()) {
                 logger.info(NAME + " is starting...");
             }
             // 1. export Dubbo Services
+            //1. 重点：发布服务
             exportServices();
 
             // Not only provider register
             if (!isOnlyRegisterProvider() || hasExportedServices()) {
                 // 2. export MetadataService
+                //2. 暴露本地元数据服务
                 exportMetadataService();
                 //3. Register the local ServiceInstance if required
+                //3. 将服务实例注册到专用于服务发现的注册中心
                 registerServiceInstance();
             }
 
+            //处理Consumer的ReferenceConfig
             referServices();
             if (asyncExportingFutures.size() > 0) {
+                //异步发布服务，会启动一个线程监听发布是否完成，完成之后将ready设置为true
                 new Thread(() -> {
                     try {
                         this.awaitFinish();
@@ -769,7 +779,7 @@ public class DubboBootstrap extends GenericEventListener {
                         logger.info(NAME + " is ready.");
                     }
                 }).start();
-            } else {
+            } else {  //同步发布服务成功后，将ready设置为true
                 ready.set(true);
                 if (logger.isInfoEnabled()) {
                     logger.info(NAME + " is ready.");
@@ -926,20 +936,25 @@ public class DubboBootstrap extends GenericEventListener {
         }
     }
 
+    /**
+     * 服务发布核心逻辑的入口
+     */
     private void exportServices() {
+        //从配置管理器中获取所有要暴露的服务配置，一个接口类对应一个ServiceConfigBase实例
         configManager.getServices().forEach(sc -> {
             // TODO, compatible with ServiceConfig.export()
             ServiceConfig serviceConfig = (ServiceConfig) sc;
             serviceConfig.setBootstrap(this);
 
-            if (exportAsync) {
+            if (exportAsync) {  //异步模式，获取一个线程池异步执行服务发布逻辑
                 ExecutorService executor = executorRepository.getServiceExporterExecutor();
                 Future<?> future = executor.submit(() -> {
                     sc.export();
                     exportedServices.add(sc);
                 });
+                //记录异步发布的Future
                 asyncExportingFutures.add(future);
-            } else {
+            } else {  //同步发布
                 sc.export();
                 exportedServices.add(sc);
             }
