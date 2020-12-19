@@ -21,6 +21,7 @@ import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster;
 
 /**
+ * 并行调用多个Provider节点，只要有一个成功就返回
  * {@link ForkingClusterInvoker}
  *
  */

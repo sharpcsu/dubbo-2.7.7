@@ -28,6 +28,8 @@ import org.apache.dubbo.rpc.cluster.LoadBalance;
 import java.util.List;
 
 /**
+ * FailfastClusterInvoker 只会进行一次请求，请求失败之后会立即抛出异常，这种策略适合非幂等的操作
+ *
  * Execute exactly once, which means this policy will throw an exception immediately in case of an invocation error.
  * Usually used for non-idempotent write operations
  *
@@ -43,10 +45,12 @@ public class FailfastClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @Override
     public Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         checkInvokers(invokers, invocation);
+        //调用select()得到要调用的Invoker对象
         Invoker<T> invoker = select(loadbalance, invocation, invokers, null);
         try {
-            return invoker.invoke(invocation);
+            return invoker.invoke(invocation);  //发起请求
         } catch (Throwable e) {
+            //请求失败，直接抛出异常
             if (e instanceof RpcException && ((RpcException) e).isBiz()) { // biz exception.
                 throw (RpcException) e;
             }

@@ -21,6 +21,7 @@ import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster;
 
 /**
+ * 失败自动恢复
  * {@link FailbackClusterInvoker}
  *
  */

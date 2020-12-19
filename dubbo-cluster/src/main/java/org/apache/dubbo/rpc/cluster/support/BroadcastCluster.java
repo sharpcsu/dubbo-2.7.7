@@ -21,6 +21,7 @@ import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster;
 
 /**
+ * 广播多个Provider节点，只要有一个节点失败就失败
  * BroadcastCluster
  *
  */

@@ -40,6 +40,10 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 import static org.apache.dubbo.rpc.cluster.Constants.DEFAULT_FORKS;
 
 /**
+ * ForkingClusterInvoker 中会维护一个线程池（executor 字段，通过 Executors.newCachedThreadPool() 方法创建的线程池），
+ * 并发调用多个 Provider 节点，只要有一个 Provider 节点成功返回了结果，ForkingClusterInvoker 的 doInvoke() 方法就会立即结束运行。
+ * ForkingClusterInvoker 主要是为了应对一些实时性要求较高的读操作，因为没有并发控制的多线程写入，可能会导致数据不一致。
+ *
  * NOTICE! This implementation does not work well with async call.
  *
  * Invoke a specific number of invokers concurrently, usually used for demanding real-time operations, but need to waste more service resources.
@@ -59,54 +63,70 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
     }
 
+    /**
+     * 从 Invoker 集合中选出指定个数（forks 参数决定）的 Invoker 对象，
+     * 然后通过 executor 线程池并发调用这些 Invoker，
+     * 并将请求结果存储在 ref 阻塞队列中，则当前线程会阻塞在 ref 队列上，等待第一个请求结果返回
+     */
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         try {
+            //检查Invoker集合是否为空
             checkInvokers(invokers, invocation);
             final List<Invoker<T>> selected;
+            //从URL中获取forks参数，作为并发请求的上限，默认值为2
             final int forks = getUrl().getParameter(FORKS_KEY, DEFAULT_FORKS);
             final int timeout = getUrl().getParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             if (forks <= 0 || forks >= invokers.size()) {
+                //如果forks为负数或大于Invoker集合的长度，直接并发调用全部Invoker
                 selected = invokers;
             } else {
+                //按照forks指定的并发度，选择此次并发调用的Invoker对象
                 selected = new ArrayList<>(forks);
                 while (selected.size() < forks) {
                     Invoker<T> invoker = select(loadbalance, invocation, invokers, selected);
                     if (!selected.contains(invoker)) {
                         //Avoid add the same invoker several times.
-                        selected.add(invoker);
+                        selected.add(invoker);  //避免重复选择
                     }
                 }
             }
             RpcContext.getContext().setInvokers((List) selected);
+            //记录失败的请求个数
             final AtomicInteger count = new AtomicInteger();
+            //记录请求结果
             final BlockingQueue<Object> ref = new LinkedBlockingQueue<>();
-            for (final Invoker<T> invoker : selected) {
-                executor.execute(() -> {
+            for (final Invoker<T> invoker : selected) {  //遍历selected列表
+                executor.execute(() -> {  //为每个Invoker创建一个任务，提交到线程池中
                     try {
+                        //发起请求
                         Result result = invoker.invoke(invocation);
+                        //将请求结果写到ref队列中
                         ref.offer(result);
                     } catch (Throwable e) {
                         int value = count.incrementAndGet();
                         if (value >= selected.size()) {
+                            //失败的请求个数超过并发的请求个数，向ref队列中写入异常
                             ref.offer(e);
                         }
                     }
                 });
             }
             try {
+                //当前线程会阻塞等待任意一个请求结果的出现
                 Object ret = ref.poll(timeout, TimeUnit.MILLISECONDS);
-                if (ret instanceof Throwable) {
+                if (ret instanceof Throwable) {  //结果类型为Throwable，抛出异常
                     Throwable e = (Throwable) ret;
                     throw new RpcException(e instanceof RpcException ? ((RpcException) e).getCode() : 0, "Failed to forking invoke provider " + selected + ", but no luck to perform the invocation. Last error is: " + e.getMessage(), e.getCause() != null ? e.getCause() : e);
                 }
-                return (Result) ret;
+                return (Result) ret;  //返回结果
             } catch (InterruptedException e) {
                 throw new RpcException("Failed to forking invoke provider " + selected + ", but no luck to perform the invocation. Last error is: " + e.getMessage(), e);
             }
         } finally {
             // clear attachments which is binding to current thread.
+            //清除上下文信息
             RpcContext.getContext().clearAttachments();
         }
     }

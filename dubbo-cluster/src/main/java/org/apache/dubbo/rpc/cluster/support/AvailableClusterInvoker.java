@@ -35,13 +35,19 @@ public class AvailableClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
     }
 
+    /**
+     * 遍历整个 Invoker 集合，逐个调用对应的 Provider 节点，当遇到第一个可用的 Provider 节点时，
+     * 尝试访问该 Provider 节点，成功则返回结果；如果访问失败，则抛出异常终止遍历。
+     */
     @Override
     public Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
-        for (Invoker<T> invoker : invokers) {
-            if (invoker.isAvailable()) {
+        for (Invoker<T> invoker : invokers) {  //遍历Invoker集合
+            if (invoker.isAvailable()) {  //检测Invoker是否可用
+                //发起请求，调用失败的异常直接抛出
                 return invoker.invoke(invocation);
             }
         }
+        //没有找到可用Invoker，抛出异常
         throw new RpcException("No provider available in " + invokers);
     }
 

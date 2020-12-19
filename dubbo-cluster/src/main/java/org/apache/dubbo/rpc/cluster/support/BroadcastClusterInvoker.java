@@ -29,6 +29,9 @@ import org.apache.dubbo.rpc.cluster.LoadBalance;
 import java.util.List;
 
 /**
+ * 逐个调用每个 Provider 节点，其中任意一个 Provider 节点报错，都会在全部调用结束之后抛出异常。
+ * BroadcastClusterInvoker通常用于通知类的操作，例如通知所有 Provider 节点更新本地缓存。
+ *
  * BroadcastClusterInvoker
  *
  */
@@ -43,12 +46,15 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
+        //检测Invoker集合是否为空
         checkInvokers(invokers, invocation);
         RpcContext.getContext().setInvokers((List) invokers);
-        RpcException exception = null;
+        RpcException exception = null;  //记录失败请求的相关异常信息
         Result result = null;
+        //遍历所有Invoker对象
         for (Invoker<T> invoker : invokers) {
             try {
+                //发起请求
                 result = invoker.invoke(invocation);
             } catch (RpcException e) {
                 exception = e;
@@ -58,7 +64,7 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 logger.warn(e.getMessage(), e);
             }
         }
-        if (exception != null) {
+        if (exception != null) {  //出现异常，抛出
             throw exception;
         }
         return result;
