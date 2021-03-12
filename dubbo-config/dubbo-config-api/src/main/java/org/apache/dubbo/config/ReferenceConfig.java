@@ -83,6 +83,10 @@ import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
 /**
  * Please avoid using this class for any new application,
  * use {@link ReferenceConfigBase} instead.
+ * 服务引用的核心实现
+ *
+ * 服务引用的核心实现在 ReferenceConfig 之中，一个 ReferenceConfig 对象对应一个服务接口，
+ * 每个 ReferenceConfig 对象中都封装了与注册中心的网络连接，以及与 Provider 的网络连接
  */
 public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 

@@ -374,6 +374,9 @@ public class DubboBootstrap extends GenericEventListener {
         return reference(builder.build());
     }
 
+    /**
+     * 将config添加到ConfigManager中
+     */
     public DubboBootstrap reference(ReferenceConfig<?> referenceConfig) {
         configManager.addReference(referenceConfig);
         return this;
@@ -976,24 +979,28 @@ public class DubboBootstrap extends GenericEventListener {
         exportedServices.clear();
     }
 
+    /**
+     * 完成服务引用
+     * 从ConfigManager获取所有ReferenceConfig列表，并根据ReferenceConfig获取对应的代理对象
+     */
     private void referServices() {
-        if (cache == null) {
+        if (cache == null) { //初始化ReferenceConfigCache
             cache = ReferenceConfigCache.getCache();
         }
 
         configManager.getReferences().forEach(rc -> {
-            // TODO, compatible with  ReferenceConfig.refer()
+            //遍历ReferenceConfig列表
             ReferenceConfig referenceConfig = (ReferenceConfig) rc;
             referenceConfig.setBootstrap(this);
 
-            if (rc.shouldInit()) {
-                if (referAsync) {
+            if (rc.shouldInit()) { //检测ReferenceConfig是否已经初始化
+                if (referAsync) { //异步
                     CompletableFuture<Object> future = ScheduledCompletableFuture.submit(
                             executorRepository.getServiceExporterExecutor(),
                             () -> cache.get(rc)
                     );
                     asyncReferringFutures.add(future);
-                } else {
+                } else { //同步
                     cache.get(rc);
                 }
             }

@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentMap;
  * for the framework which create {@link ReferenceConfigBase} frequently.
  * <p>
  * You can implement and use your own {@link ReferenceConfigBase} cache if you need use complicate strategy.
+ * 缓存ReferenceConfig实例
  */
 public class ReferenceConfigCache {
     public static final String DEFAULT_NAME = "_DEFAULT_";
@@ -43,10 +44,11 @@ public class ReferenceConfigCache {
      * Create the key with the <b>Group</b>, <b>Interface</b> and <b>version</b> attribute of {@link ReferenceConfigBase}.
      * <p>
      * key example: <code>group1/org.apache.dubbo.foo.FooService:1.0.0</code>.
+     * 引用默认的KeyGenerator实现（ReferenceConfigCache 中的匿名内部类）
      */
     public static final KeyGenerator DEFAULT_KEY_GENERATOR = referenceConfig -> {
         String iName = referenceConfig.getInterface();
-        if (StringUtils.isBlank(iName)) {
+        if (StringUtils.isBlank(iName)) { //获取服务接口名称
             Class<?> clazz = referenceConfig.getInterfaceClass();
             iName = clazz.getName();
         }
@@ -54,6 +56,7 @@ public class ReferenceConfigCache {
             throw new IllegalArgumentException("No interface info in ReferenceConfig" + referenceConfig);
         }
 
+        //key的格式是group/interface:version
         StringBuilder ret = new StringBuilder();
         if (!StringUtils.isBlank(referenceConfig.getGroup())) {
             ret.append(referenceConfig.getGroup()).append("/");
@@ -65,12 +68,23 @@ public class ReferenceConfigCache {
         return ret.toString();
     };
 
+    /**
+     * 维护ReferenceConfig缓存信息
+     * key：由Group、服务接口和version构成
+     */
     static final ConcurrentMap<String, ReferenceConfigCache> CACHE_HOLDER = new ConcurrentHashMap<String, ReferenceConfigCache>();
     private final String name;
     private final KeyGenerator generator;
 
+    /**
+     * 存储已经被处理的ReferenceConfig
+     */
     private final ConcurrentMap<String, ReferenceConfigBase<?>> referredReferences = new ConcurrentHashMap<>();
 
+    /**
+     * 存储服务接口的全部代理对象
+     * 第一层key是服务接口的类型，第二层key是KeyGenerator为不同服务提供方生成的key，value是服务的代理对象
+     */
     private final ConcurrentMap<Class<?>, ConcurrentMap<String, Object>> proxies = new ConcurrentHashMap<>();
 
     private ReferenceConfigCache(String name, KeyGenerator generator) {
@@ -246,6 +260,10 @@ public class ReferenceConfigCache {
                 + ")";
     }
 
+    /**
+     * 修改缓存key的生成逻辑
+     * 默认的 KeyGenerator 实现是 ReferenceConfigCache 中的匿名内部类
+     */
     public interface KeyGenerator {
         String generateKey(ReferenceConfigBase<?> referenceConfig);
     }
