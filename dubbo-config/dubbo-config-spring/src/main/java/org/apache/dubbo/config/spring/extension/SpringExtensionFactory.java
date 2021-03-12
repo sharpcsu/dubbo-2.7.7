@@ -29,6 +29,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import java.util.Set;
 
 /**
+ * 将属性名称作为Spring Bean的名称，从Spring容器中获取Bean
  * SpringExtensionFactory
  */
 public class SpringExtensionFactory implements ExtensionFactory {

@@ -61,6 +61,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_KEY;
 import static org.apache.dubbo.common.constants.CommonConstants.REMOVE_VALUE_PREFIX;
 
 /**
+ * Dubbo SPI的核心逻辑
  * {@link org.apache.dubbo.rpc.model.ApplicationModel}, {@code DubboBootstrap} and this class are
  * at present designed to be singleton or static (by itself totally static or uses some static fields).
  * So the instances returned from them are of process or classloader scope. If you want to support
@@ -131,6 +132,9 @@ public class ExtensionLoader<T> {
 
     private Map<String, IllegalStateException> exceptions = new ConcurrentHashMap<>();
 
+    /**
+     *
+     */
     private static volatile LoadingStrategy[] strategies = loadLoadingStrategies();
 
     public static void setLoadingStrategies(LoadingStrategy... strategies) {
@@ -451,6 +455,7 @@ public class ExtensionLoader<T> {
 //    }
 
     /**
+     * 根据传入的扩展名称从cachedInstances缓存中查找扩展实现的实例，最终将其实例化后返回
      * Find the extension with the given name. If the specified name is not found, then {@link IllegalStateException}
      * will be thrown.
      */
@@ -616,7 +621,14 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     * 获取适配器实例
+     * 获取适配器实例，并将该实例缓存到 cachedAdaptiveInstance 字段（Holder类型）中，核心流程如下：
+     * 	1. 首先，检查 cachedAdaptiveInstance 字段中是否已缓存了适配器实例，如果已缓存，则直接返回该实例即可。
+     * 	2. 然后，调用 getExtensionClasses() 方法，其中就会触发前文介绍的 loadClass() 方法，完成 cachedAdaptiveClass 字段的填充。
+     * 	3. 如果存在 @Adaptive 注解修饰的扩展实现类，该类就是适配器类，通过 newInstance() 将其实例化即可。
+     * 	        如果不存在 @Adaptive 注解修饰的扩展实现类，就需要通过 createAdaptiveExtensionClass() 方法扫描扩展接口中方法上的 @Adaptive 注解，
+     * 	        动态生成适配器类，然后实例化。
+     * 	4. 接下来，调用 injectExtension() 方法进行自动装配，就能得到一个完整的适配器实例。
+     * 	5. 最后，将适配器实例缓存到 cachedAdaptiveInstance 字段，然后返回适配器实例。
      */
     @SuppressWarnings("unchecked")
     public T getAdaptiveExtension() {
@@ -673,6 +685,15 @@ public class ExtensionLoader<T> {
     /**
      * 完成SPI配置文件的查找以及相应扩展实现类的实例化
      * 还实现了自动装配以及自动wrapper包装等功能
+     *
+     * 核心流程是这样的：
+     * 	1. 获取 cachedClasses 缓存，根据扩展名从 cachedClasses 缓存中获取扩展实现类。如果 cachedClasses 未初始化，
+     * 	    则会扫描前面介绍的三个 SPI 目录获取查找相应的 SPI 配置文件，然后加载其中的扩展实现类，
+     * 	    最后将扩展名和扩展实现类的映射关系记录到 cachedClasses 缓存中。这部分逻辑在 loadExtensionClasses() 和 loadDirectory() 方法中。
+     * 	2. 根据扩展实现类从 EXTENSION_INSTANCES 缓存中查找相应的实例。如果查找失败，会通过反射创建扩展实现对象。
+     * 	3. 自动装配扩展实现对象中的属性（即调用其 setter）。这里涉及 ExtensionFactory 以及自动装配的相关内容，本课时后面会进行详细介绍。
+     * 	4. 自动包装扩展实现对象。这里涉及 Wrapper 类以及自动包装特性的相关内容，本课时后面会进行详细介绍。
+     * 	5. 如果扩展实现类实现了 Lifecycle 接口，在 initExtension() 方法中会调用 initialize() 方法进行初始化。
      */
     @SuppressWarnings("unchecked")
     private T createExtension(String name) {
@@ -945,6 +966,20 @@ public class ExtensionLoader<T> {
         return false;
     }
 
+    /**
+     *
+     *
+     * 1. 在 isWrapperClass() 方法中，会判断该扩展实现类是否包含拷贝构造函数（即构造函数只有一个参数且为扩展接口类型），
+     *      如果包含，则为 Wrapper 类，这就是判断 Wrapper 类的标准。
+     * 2. 将 Wrapper 类记录到 cachedWrapperClasses（Set<Class<?>>类型）这个实例字段中进行缓存。
+     *
+     * @param extensionClasses
+     * @param resourceURL
+     * @param clazz
+     * @param name
+     * @param overridden
+     * @throws NoSuchMethodException
+     */
     private void loadClass(Map<String, Class<?>> extensionClasses, java.net.URL resourceURL, Class<?> clazz, String name,
                            boolean overridden) throws NoSuchMethodException {
         if (!type.isAssignableFrom(clazz)) {
