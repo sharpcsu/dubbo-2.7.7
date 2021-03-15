@@ -38,6 +38,8 @@ import static java.util.stream.StreamSupport.stream;
  * {@link #getExportedURLs()} and {@link #getSubscribedURLs()} respectively. What's more, {@link MetadataService}
  * also providers the fine-grain methods for the precise queries.
  *
+ * 元数据服务
+ * Dubbo 中的每个 ServiceInstance 都会发布 MetadataService 接口供 Consumer 端查询元数据
  * @see WritableMetadataService
  * @since 2.7.5
  */
@@ -47,138 +49,89 @@ public interface MetadataService {
     static final String DEFAULT_EXTENSION = "default";
 
     /**
-     * The value of all service names
+     *
      */
     String ALL_SERVICE_NAMES = "*";
 
     /**
-     * The value of All service instances
+     *
      */
     String ALL_SERVICE_INTERFACES = "*";
 
     /**
-     * The service interface name of {@link MetadataService}
+     *
      */
     String SERVICE_INTERFACE_NAME = MetadataService.class.getName();
 
     /**
-     * The contract version of {@link MetadataService}, the future update must make sure compatible.
+     *
      */
     String VERSION = "1.0.0";
 
     /**
-     * Gets the current Dubbo Service name
-     *
-     * @return non-null
+     * 获取当前ServiceInstance所属服务的名称
      */
     String serviceName();
 
     /**
-     * Gets the version of {@link MetadataService} that always equals {@link #VERSION}
-     *
-     * @return non-null
-     * @see #VERSION
+     * 获取当前MetadataService接口的版本
      */
     default String version() {
         return VERSION;
     }
 
     /**
-     * the list of String that presents all Dubbo subscribed {@link URL urls}
-     *
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting the {@link URL URLs}
-     * @see #toSortedStrings(Stream)
-     * @see URL#toFullString()
+     * 获取当前ServiceInstance订阅的全部URL
      */
     default SortedSet<String> getSubscribedURLs(){
         throw new UnsupportedOperationException("This operation is not supported for consumer.");
     }
 
     /**
-     * Get the {@link SortedSet sorted set} of String that presents all Dubbo exported {@link URL urls}
-     *
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting the {@link URL URLs}
-     * @see #toSortedStrings(Stream)
-     * @see URL#toFullString()
+     * 获取当前ServiceInstance发布的全部URL
      */
     default SortedSet<String> getExportedURLs() {
         return getExportedURLs(ALL_SERVICE_INTERFACES);
     }
 
     /**
-     * Get the {@link SortedSet sorted set} of String that presents the specified Dubbo exported {@link URL urls} by the <code>serviceInterface</code>
-     *
-     * @param serviceInterface The class name of Dubbo service interface
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting the {@link URL URLs}
-     * @see #toSortedStrings(Stream)
-     * @see URL#toFullString()
+     * 根据服务接口查找当前ServiceInstance暴露的全部接口
      */
     default SortedSet<String> getExportedURLs(String serviceInterface) {
         return getExportedURLs(serviceInterface, null);
     }
 
     /**
-     * Get the {@link SortedSet sorted set} of String that presents the specified Dubbo exported {@link URL urls} by the
-     * <code>serviceInterface</code> and <code>group</code>
-     *
-     * @param serviceInterface The class name of Dubbo service interface
-     * @param group            the Dubbo Service Group (optional)
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting the {@link URL URLs}
-     * @see #toSortedStrings(Stream)
-     * @see URL#toFullString()
+     * 根据服务接口和group两个条件查找当前ServiceInstance暴露的全部接口
      */
     default SortedSet<String> getExportedURLs(String serviceInterface, String group) {
         return getExportedURLs(serviceInterface, group, null);
     }
 
     /**
-     * Get the {@link SortedSet sorted set} of String that presents the specified Dubbo exported {@link URL urls} by the
-     * <code>serviceInterface</code>, <code>group</code> and <code>version</code>
-     *
-     * @param serviceInterface The class name of Dubbo service interface
-     * @param group            the Dubbo Service Group (optional)
-     * @param version          the Dubbo Service Version (optional)
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting the {@link URL URLs}
-     * @see #toSortedStrings(Stream)
-     * @see URL#toFullString()
+     * 根据服务接口、group和version三个条件查找当前ServiceInstance暴露的全部接口
      */
     default SortedSet<String> getExportedURLs(String serviceInterface, String group, String version) {
         return getExportedURLs(serviceInterface, group, version, null);
     }
 
     /**
-     * Get the sorted set of String that presents the specified Dubbo exported {@link URL urls} by the
-     * <code>serviceInterface</code>, <code>group</code>, <code>version</code> and <code>protocol</code>
-     *
-     * @param serviceInterface The class name of Dubbo service interface
-     * @param group            the Dubbo Service Group (optional)
-     * @param version          the Dubbo Service Version (optional)
-     * @param protocol         the Dubbo Service Protocol (optional)
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting the {@link URL URLs}
-     * @see #toSortedStrings(Stream)
-     * @see URL#toFullString()
+     * 根据服务接口、group、version和protocol四个条件查找当前ServiceInstance暴露的全部接口
      */
     SortedSet<String> getExportedURLs(String serviceInterface, String group, String version, String protocol);
 
     /**
-     * Interface definition.
-     *
-     * @return
+     * 根据指定条件查询ServiceDefinition
      */
     String getServiceDefinition(String interfaceName, String version, String group);
 
     /**
-     * Interface definition.
      *
-     * @return
      */
     String getServiceDefinition(String serviceKey);
 
     /**
-     * Is the {@link URL} for the {@link MetadataService} or not?
      *
-     * @param url {@link URL url}
-     * @return
      */
     static boolean isMetadataServiceURL(URL url) {
         String serviceInterface = url.getServiceInterface();
@@ -186,10 +139,7 @@ public interface MetadataService {
     }
 
     /**
-     * Convert the multiple {@link URL urls} to a {@link List list} of {@link URL urls}
      *
-     * @param urls the strings presents the {@link URL Dubbo URLs}
-     * @return non-null
      */
     static List<URL> toURLs(Iterable<String> urls) {
         return stream(urls.spliterator(), false)
@@ -198,24 +148,14 @@ public interface MetadataService {
     }
 
     /**
-     * Convert the specified {@link Iterable} of {@link URL URLs} to be the {@link URL#toFullString() strings} presenting
-     * the {@link URL URLs}
      *
-     * @param iterable {@link Iterable} of {@link URL}
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting
-     * @see URL#toFullString()
      */
     static SortedSet<String> toSortedStrings(Iterable<URL> iterable) {
         return toSortedStrings(StreamSupport.stream(iterable.spliterator(), false));
     }
 
     /**
-     * Convert the specified {@link Stream} of {@link URL URLs} to be the {@link URL#toFullString() strings} presenting
-     * the {@link URL URLs}
      *
-     * @param stream {@link Stream} of {@link URL}
-     * @return the non-null read-only {@link SortedSet sorted set} of {@link URL#toFullString() strings} presenting
-     * @see URL#toFullString()
      */
     static SortedSet<String> toSortedStrings(Stream<URL> stream) {
         return unmodifiableSortedSet(stream.map(URL::toFullString).collect(TreeSet::new, Set::add, Set::addAll));

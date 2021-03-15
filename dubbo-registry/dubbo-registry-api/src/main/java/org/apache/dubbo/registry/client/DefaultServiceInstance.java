@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * The default implementation of {@link ServiceInstance}.
+ * ServiceInstance的默认实现
  *
  * @since 2.7.5
  */

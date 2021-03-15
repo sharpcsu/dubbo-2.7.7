@@ -1,19 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.dubbo.metadata.definition.model;
 
 import java.io.Serializable;
@@ -22,13 +6,29 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 2015/1/27.
+ * 描述一个服务接口的定义
  */
 public class ServiceDefinition implements Serializable {
 
+    /**
+     * 接口的完全限定名称
+     */
     private String canonicalName;
+
+    /**
+     * 服务接口所在的完整路径
+     */
     private String codeSource;
+
+    /**
+     * 接口中定义的全部方法描述信息。在 MethodDefinition 中记录了方法的名称、参数类型、返回值类型以及方法参数涉及的所有 TypeDefinition。
+     */
     private List<MethodDefinition> methods;
+
+    /**
+     * 接口定义中涉及的全部类型描述信息，包括方法的参数和字段，如果遇到复杂类型，TypeDefinition 会递归获取复杂类型内部的字段。在 dubbo-metadata-api 模块中，
+     * 提供了多种类型对应的 TypeBuilder 用于创建对应的 TypeDefinition，对于没有特定 TypeBuilder 实现的类型，会使用 DefaultTypeBuilder。
+     */
     private List<TypeDefinition> types;
 
     public String getCanonicalName() {

@@ -23,9 +23,7 @@ import java.util.SortedSet;
 import java.util.function.BiFunction;
 
 /**
- * 2019-08-14
- *
- * @since 2.7.5
+ * 远程扩展实现
  */
 public class RemoteWritableMetadataServiceDelegate implements WritableMetadataService {
     InMemoryWritableMetadataService defaultWritableMetadataService;
@@ -95,6 +93,7 @@ public class RemoteWritableMetadataServiceDelegate implements WritableMetadataSe
     }
 
     private boolean doFunction(BiFunction<WritableMetadataService, URL, Boolean> func, URL url) {
+        // 同时调用InMemoryWritableMetadataService对象和RemoteWritableMetadataService对象的exportURL()方法
         return func.apply(defaultWritableMetadataService, url) && func.apply(remoteWritableMetadataService, url);
     }
 }

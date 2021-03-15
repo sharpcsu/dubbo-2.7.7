@@ -1,19 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.dubbo.metadata.report.support;
 
 import org.apache.dubbo.common.URL;
@@ -88,21 +72,59 @@ public abstract class AbstractMetadataReport implements MetadataReport {
 
     // Local disk cache, where the special key value.registries records the list of metadata centers, and the others are the list of notified service providers
     final Properties properties = new Properties();
+
+    /**
+     * 该线程池除了用来同步本地内存缓存与文件缓存，还会用来完成异步上报的功能
+     */
     private final ExecutorService reportCacheExecutor = Executors.newFixedThreadPool(1, new NamedThreadFactory("DubboSaveMetadataReport", true));
+
+    /**
+     * 内存缓存
+     */
     final Map<MetadataIdentifier, Object> allMetadataReports = new ConcurrentHashMap<>(4);
 
+    /**
+     * 记录最近一次元数据上报的版本，单调递增
+     */
     private final AtomicLong lastCacheChanged = new AtomicLong();
+
+    /**
+     * 用来暂存上报失败的元数据，后面会有定时任务进行重试
+     */
     final Map<MetadataIdentifier, Object> failedReports = new ConcurrentHashMap<>(4);
+
+    /**
+     * 元数据中心的URL，其中包含元数据中心的地址
+     */
     private URL reportURL;
+
+    /**
+     * 是否同步上报元数据
+     */
     boolean syncReport;
-    // Local disk cache file
+
+    /**
+     * 本地磁盘缓存，用来缓存上报的元数据
+     */
     File file;
+
+    /**
+     * 当前MetadataReport实例是否已经初始化
+     */
     private AtomicBoolean initialized = new AtomicBoolean(false);
+
+    /**
+     * 用于重试的定时任务
+     */
     public MetadataReportRetry metadataReportRetry;
 
+    /**
+     * 首先会初始化本地的文件缓存，
+     * 然后创建 MetadataReportRetry 重试任务，并启动一个周期性刷新的定时任务
+     */
     public AbstractMetadataReport(URL reportServerURL) {
         setUrl(reportServerURL);
-        // Start file save timer
+        //默认的本地文件缓存
         String defaultFilename = System.getProperty("user.home") + "/.dubbo/dubbo-metadata-" + reportServerURL.getParameter(APPLICATION_KEY) + "-" + reportServerURL.getAddress().replaceAll(":", "-") + ".cache";
         String filename = reportServerURL.getParameter(FILE_KEY, defaultFilename);
         File file = null;
@@ -119,13 +141,17 @@ public abstract class AbstractMetadataReport implements MetadataReport {
             }
         }
         this.file = file;
+        //将file文件中的内容加载到properties字段中
         loadProperties();
+        //是否同步上报元数据
         syncReport = reportServerURL.getParameter(SYNC_REPORT_KEY, false);
+        //创建重试任务
         metadataReportRetry = new MetadataReportRetry(reportServerURL.getParameter(RETRY_TIMES_KEY, DEFAULT_METADATA_REPORT_RETRY_TIMES),
                 reportServerURL.getParameter(RETRY_PERIOD_KEY, DEFAULT_METADATA_REPORT_RETRY_PERIOD));
-        // cycle report the data switch
+        //是否周期性地上报元数据
         if (reportServerURL.getParameter(CYCLE_REPORT_KEY, DEFAULT_METADATA_REPORT_CYCLE_REPORT)) {
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("DubboMetadataReportTimer", true));
+            //默认每隔1天将本地元数据全部刷新到元数据中心
             scheduler.scheduleAtFixedRate(this::publishAll, calculateStartTime(), ONE_DAY_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
         }
     }
